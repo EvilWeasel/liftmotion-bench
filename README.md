@@ -1,4 +1,4 @@
-# LES02 Fahrkurven-Analyse
+# LiftMotion-Bench
 
 Real-time elevator ride curve visualization tool for test bench technicians. Reads position data from Kübler Ants LES02 shaft copying systems via CAN bus and streams live ride curves to a web interface.
 
@@ -226,7 +226,3 @@ sudo pacman -S can-utils
 ## License
 
 [Your license here]
-
-## Contact
-
-[Your contact information here]
