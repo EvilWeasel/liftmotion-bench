@@ -10,8 +10,8 @@
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
-      python = pkgs.python314;
-      pythonPackages = pkgs.python314Packages;
+      python = pkgs.python313;
+      pythonPackages = pkgs.python313Packages;
     in
     {
       devShells.${system}.default = pkgs.mkShell {
@@ -24,8 +24,6 @@
           pythonPackages.numpy
           pythonPackages.matplotlib
           pythonPackages.pandas
-          pythonPackages.fastapi
-          pythonPackages.uvicorn
           pythonPackages.websockets
 
           # CAN tooling
