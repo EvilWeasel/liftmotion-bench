@@ -1,265 +1,382 @@
-# Projekt: LES02 Fahrkurven-Analyse
+# LES02 Fahrkurven-Analyse – Projektübersicht
 
-## 1. Ziel des Projekts
-
-Ziel ist ein Software-Werkzeug, das die Fahrkurve eines Aufzugs auf Basis von Positionsdaten eines **Kübler Ants LES02** Schachtkopiersystems erfasst, auswertet und visualisiert.
-
-Konkret soll das Tool:
-
-- Positionsdaten über den CAN-Bus auslesen
-- daraus Geschwindigkeit (und optional Beschleunigung) berechnen
-- Messläufe (z. B. 30 Sekunden) aufzeichnen
-- die Ergebnisse als Graph darstellen
-- perspektivisch eine **Live-Visualisierung über ein Web-UI (React)** ermöglichen
-
-Das Tool ist **rein analytisch** und greift nicht steuernd in den Aufzug ein.
+**Technical Project Documentation**
 
 ---
 
-## 2. Hardware- & Systemannahmen
+## 1. Projektbeschreibung
 
-### Sensor
+Dieses Projekt entwickelt ein Software-Werkzeug zur **Echtzeit-Visualisierung von Aufzug-Fahrkurven** für Prüfstand-Techniker in der Aufzugkomponenten-Produktion. Das Tool ermöglicht die objektive Bewertung und Optimierung mechanischer Ventilparameter auf Basis präziser Sensordaten.
 
-- Gerät: **Kübler Ants LES02**
-- Funktion: Absoluter Positionssensor
-- Auflösung: 1 mm
-- Max. Geschwindigkeit: 8 m/s (funktional bis 12 m/s)
+### Kernfunktion
 
-### Kommunikation
-
-- Bus: **CAN (SocketCAN unter Linux)**
-- Baudrate: 250 kbit/s
-- CAN-IDs:
-  - `0x80`: Position Master
-  - `0x81`: Position Slave
-- Payload:
-  - Bytes 1–3: absolute Position (MSB first)
-  - Byte 4: nicht relevant
-- Sendeintervall: alle 2 ms (effektiv 500 Hz)
-
-### Zielplattform
-
-- Demo auf Laptop mit **NixOS**
-  - Später Raspi
-- USB–CAN-Interface (z. B. CANable, Peak, Kvaser)
+> Ein internes Werkzeug für Prüfstand-Techniker zur Echtzeit-Visualisierung von Aufzug-Fahrkurven, um das Einstellen von Steuerventilen von Rätselraten in präzise, datengetriebene Anpassungen zu verwandeln.
 
 ---
 
-## 3. NixOS System-Setup
+## 2. Kontext und Motivation
 
-### Kernel-Module
+### 2.1 Ist-Zustand (Current State)
 
-Folgende Module müssen verfügbar sein:
+Unser Unternehmen fertigt Aufzugkomponenten, primär mechanische Steuerventile. Aufgrund von Fertigungstoleranzen muss jedes Ventil vor der Auslieferung auf einem Prüfstand individuell mechanisch voreingestellt werden.
 
-- `can`
-- `can_raw`
-- `can_dev`
+**Aktuelle Probleme:**
 
-### Systempakete
+* Ventil-Einstellung erfolgt heuristisch und subjektiv
+* Mehrere mechanische Parameter beeinflussen die Fahrkurve mit überlappenden Effekten
+* Wiederholte Testfahrten nötig, um optimale Einstellung zu finden
+* Keine objektive Bewertung der Fahrkurvenqualität
+* Inkonsistente Ergebnisse zwischen Chargen
+* Prüfstände sind ein Produktionsengpass
 
-```nix
-environment.systemPackages = with pkgs; [
-  can-utils
-];
-```
+### 2.2 Soll-Zustand (Target State)
 
-### CAN-Interface aktivieren
-
-```bash
-sudo ip link set can0 up type can bitrate 250000
-```
-
-Test:
-
-```bash
-candump can0
-```
+* **Objektive Bewertung:** Fahrkurven werden in Echtzeit visualisiert und können mit Referenzkurven verglichen werden
+* **Reduzierte Einstellzeit:** Techniker sehen sofort die Auswirkung mechanischer Anpassungen
+* **Konsistente Qualität:** Standardisierte, reproduzierbare Einstellung über alle Ventile hinweg
+* **Datengetriebene Optimierung:** Grundlage für zukünftige automatisierte Parameteroptimierung
+* **Dokumentation:** Jede Fahrt kann für Qualitätssicherung und R&D archiviert werden
 
 ---
 
-## 4. Entwicklungsumgebung (Python Dev-Shell)
+## 3. Projektziele
 
-Empfohlene Dev-Shell:
+### 3.1 Phase 1: Prototyp (Proof of Concept)
 
-```nix
-pkgs.mkShell {
-  packages = with pkgs; [
-    python313
-    python313Packages.python-can
-    can-utils
-  ];
-}
-```
+**Ziel:** Funktionsfähiger Prototyp zur Einholung der Projektfreigabe
 
----
+**Umfang:**
 
-## 5. Architektur-Übersicht
+* Erfassung von Positionsdaten über CAN-Bus vom LES02 Schachtkopiersystem
+* Echtzeit-Berechnung von Geschwindigkeit aus Positionsdaten
+* Live-Visualisierung als Liniendiagramm im Web-UI
+* Stabiler Betrieb während Testfahrten
+* Demonstration des Potentials für Stakeholder
 
-### Grundprinzip
+**Erfolg:** Ein Techniker kann eine Fahrkurve live beobachten und die Visualisierung ist sofort verständlich.
 
-**Strikte Trennung von Datenquelle und Verarbeitung**.
+### 3.2 Phase 2: Produktionsversion
 
-```
-[Datenquelle]
-   | (CAN / Replay / Simulation)
-   v
-[Python Sampler]
-   |
-   +--> CSV / Snapshot
-   +--> WebSocket Stream
-   v
-[Analyse & Filter]
-   v
-[Visualisierung]
-```
+**Ziel:** Vollständige Version für den produktiven Einsatz am Prüfstand
+
+**Zusätzliche Features:**
+
+* Persistierung abgeschlossener Fahrten (SQLite)
+* Historische Datenansicht (Browser für vergangene Fahrten)
+* Referenzkurven-Overlay (Soll-Fahrkurve zum Vergleich)
+* Vergleichsansicht (aufgezeichnete Fahrt vs. Referenz)
+* Erweiterte Fehlerbehandlung und Diagnose
+* Export-Funktionen (CSV, PNG)
+
+**Erfolg:** Prüfstand-Techniker nutzen das Tool täglich zur Ventil-Einstellung und berichten messbare Zeitersparnis.
 
 ---
 
-## 6. Internes Datenmodell
+## 4. Non-Goals
 
-Alle weiteren Schritte arbeiten ausschließlich mit diesem Modell:
+Das Projekt umfasst **explizit nicht:**
+
+* **Cloud-Backend:** System läuft vollständig lokal
+* **User Accounts:** Keine Authentifizierung, kein Multi-User-Management
+* **Steuerungsfunktion:** Tool ist rein analytisch, keine CAN-Nachrichten werden gesendet
+* **Automatische Ventileinstellung:** Keine Regelung oder automatisierte Anpassung (perspektivisch möglich)
+* **Sicherheitsrelevante Funktionen:** Keine Safety-Critical-Features
+* **Mobile Apps:** Fokus auf Web-UI für Desktop/Tablet
+
+---
+
+## 5. Zielgruppe
+
+### 5.1 Primäre Nutzer
+
+* **Prüfstand-Techniker** in der Produktion
+
+### 5.2 Sekundäre / Zukünftige Nutzer
+
+* Feld-Service-Techniker
+* Installations-Techniker beim Kunden
+* R&D für Langzeit-Datenanalyse
+
+### 5.3 Nutzer-Charakteristika
+
+* Technisch versiert, aber keine Software-Entwickler
+* Erwartung: Zuverlässigkeit und Klarheit vor Feature-Reichtum
+* UI muss ohne ausführliche Erklärung nutzbar sein
+* Arbeitsumgebung: industrieller Prüfstand, möglicherweise rau/laut
+
+---
+
+## 6. System-Architektur (High-Level)
+
+### 6.1 Architektur-Prinzipien
+
+* **Einfach und robust** vor Feature-Reichtum
+* **Strikte Trennung** von Datenquelle, Verarbeitung und Visualisierung
+* **Lokale Ausführung** ohne Cloud-Abhängigkeit
+* **Fail-Safe Verhalten** bevorzugt vor Feature-Vollständigkeit
+* **Austauschbare Datenquellen** (Live CAN, Mock, Replay)
+
+### 6.2 Komponenten-Übersicht
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Elevator / Test Bench                                  │
+│  ↓                                                       │
+│  Kübler Ants LES02 Shaft Copying System                │
+└─────────────────────────────────────────────────────────┘
+                    │
+                    │ CAN-Bus (250 kbit/s, SocketCAN)
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│  Python CAN Listener & WebSocket Server                │
+│  ├── CAN Reader (can0 / vcan0)                         │
+│  ├── Frame Parser (Position, Status, Error, System)    │
+│  ├── Event Generator (EventEnvelope)                   │
+│  └── WebSocket Broadcaster (ws://localhost:8765)       │
+└─────────────────────────────────────────────────────────┘
+                    │
+                    │ WebSocket (JSON Events)
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│  Next.js Web UI                                         │
+│  ├── WebSocket Client                                  │
+│  ├── Live Chart Visualization                          │
+│  ├── Historical Data Browser (Phase 2)                 │
+│  └── Reference Curve Overlay (Phase 2)                 │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 6.3 Datenfluss
+
+1. **Sensor → CAN-Bus:** LES02 sendet absolute Positionswerte alle 2ms
+2. **CAN → Python:** CAN-Reader filtert Position-Frames (ID 0x80/0x81)
+3. **Python → WebSocket:** Parser erstellt `position_sample` Events
+4. **WebSocket → Web-UI:** Browser empfängt Events als JSON-Stream
+5. **Web-UI → Chart:** Live-Update des Liniendiagramms (Zeit vs. Position)
+
+---
+
+## 7. Hardware und Systemanforderungen
+
+### 7.1 Sensor
+
+* **Gerät:** Kübler Ants LES02 Schachtkopiersystem
+* **Funktion:** Absoluter Positionssensor für Aufzuganlagen
+* **Auflösung:** 1 mm
+* **Maximale Geschwindigkeit:** 8 m/s (funktional bis 12 m/s)
+* **Redundanz:** Dual-Channel (Master & Slave) für Safety
+
+### 7.2 CAN-Bus Kommunikation
+
+* **Protokoll:** CAN 2.0A (11-Bit Identifier)
+* **Baudrate:** 250 kbit/s
+* **Relevante CAN-IDs:**
+  * `0x80` – Position Master
+  * `0x81` – Position Slave
+  * `0x10/0x11` – System (Lock/Unlock)
+  * `0x20/0x21` – Error
+  * `0x30/0x31` – Status
+* **Sendeintervall Positionsdaten:** alle 2 ms (effektiv 500 Hz)
+
+### 7.3 Zielplattform
+
+**Prototyp & Entwicklung:**
+
+* Laptop mit NixOS/Linux
+* USB-CAN-Interface (z.B. CANable, Peak, Kvaser)
+* Virtuelles CAN-Interface (vcan0) für Entwicklung ohne Hardware
+
+**Produktiv:**
+
+* Raspberry Pi am Prüfstand montiert **oder**
+* Industrie-PC am Prüfstand
+* Kein Internet-Zugang erforderlich
+
+---
+
+## 8. Funktionale Anforderungen
+
+### 8.1 Phase 1 (Prototyp)
+
+| Requirement ID | Beschreibung                                                      | Priorität |
+| -------------- | ----------------------------------------------------------------- | --------- |
+| FR-P1-01       | System empfängt CAN Position-Frames von LES02                     | Muss      |
+| FR-P1-02       | System parsed Positionswerte aus CAN-Payload (24-Bit MSB)         | Muss      |
+| FR-P1-03       | System broadcasted `position_sample` Events via WebSocket         | Muss      |
+| FR-P1-04       | Web-UI empfängt Events und zeigt Live-Chart (Zeit/Position)       | Muss      |
+| FR-P1-05       | Chart aktualisiert sich kontinuierlich während Fahrt              | Muss      |
+| FR-P1-06       | System zeigt Verbindungsstatus (WebSocket connected/disconnected) | Muss      |
+| FR-P1-07       | System funktioniert mit Mock-Datenquelle (ohne echtes CAN)        | Sollte    |
+| FR-P1-08       | UI ist im Dark Mode optimiert                                     | Sollte    |
+
+### 8.2 Phase 2 (Produktionsversion)
+
+| Requirement ID | Beschreibung                                            | Priorität |
+| -------------- | ------------------------------------------------------- | --------- |
+| FR-P2-01       | System persistiert abgeschlossene Fahrten in SQLite     | Muss      |
+| FR-P2-02       | Web-UI zeigt Liste historischer Fahrten (Datum/Zeit)    | Muss      |
+| FR-P2-03       | Nutzer kann historische Fahrt auswählen und anzeigen    | Muss      |
+| FR-P2-04       | System kann Referenzkurve (Soll-Profil) laden           | Sollte    |
+| FR-P2-05       | Web-UI zeigt Overlay: aufgezeichnete Fahrt vs. Referenz | Sollte    |
+| FR-P2-06       | Export-Funktion: Fahrt als CSV                          | Sollte    |
+| FR-P2-07       | Export-Funktion: Chart als PNG                          | Kann      |
+| FR-P2-08       | Berechnung und Anzeige von Geschwindigkeit (abgeleitet) | Kann      |
+| FR-P2-09       | Berechnung und Anzeige von Beschleunigung (abgeleitet)  | Kann      |
+
+---
+
+## 9. Key Design Principles
+
+### 9.1 Architektur
+
+* **Separation of Concerns:** CAN-Parsing, Event-Generierung und UI sind unabhängige Module
+* **Austauschbare Datenquellen:** Live CAN, Mock, Replay nutzen dasselbe Interface
+* **Event-Driven:** Unidirektionaler Datenfluss (Sensor → Parser → WebSocket → UI)
+* **Stateless Communication:** WebSocket ist broadcast-only, keine Request/Response-Pattern
+
+### 9.2 Datenmodell
+
+Alle Komponenten arbeiten mit einem einheitlichen Datenmodell:
 
 ```python
 @dataclass
-class PositionSample:
-    timestamp: float      # Sekunden
-    position_mm: int
-    channel: str          # "master" | "slave"
+class EventEnvelope:
+    proto: int          # Protocol version
+    type: str           # "position_sample"
+    ts: float           # Unix timestamp (seconds, high precision)
+    source: str         # "les02"
+    payload: dict       # {"channel": "master", "position_raw": 12345}
+```
+
+### 9.3 UX Principles
+
+* **Minimalistisch:** Fokus auf Kernfunktionalität
+* **Professionell:** Technisches, ruhiges Design
+* **Selbsterklärend:** Keine Dokumentation nötig für Basis-Features
+* **Fehler-Transparenz:** System muss niemals lautlos scheitern
+
+---
+
+## 10. Offene Entscheidungen
+
+Die folgenden Punkte sind noch nicht final spezifiziert:
+
+| Thema                           | Status        | Bemerkungen                                        |
+| ------------------------------- | ------------- | -------------------------------------------------- |
+| **Charting Library**            | Offen         | shadcn/ui charts, Recharts, oder Custom SVG/Canvas |
+| **Referenzkurven-Format**       | Offen         | JSON, CSV, oder Datenbank-basiert                  |
+| **SQLite-Schema**               | Konzeptionell | Details für Phase 2, bewusst unterspecified        |
+| **Geschwindigkeits-Glättung**   | Offen         | Algorithmus (Moving Average, Savitzky-Golay, etc.) |
+| **Ride Detection**              | Offen         | Automatische Erkennung von Fahrtbeginn/-ende       |
+| **Hardware-Specs Raspberry Pi** | Offen         | Modell und Performance-Tests stehen aus            |
+
+---
+
+## 11. Erfolgskriterien
+
+### 11.1 Prototyp ist erfolgreich, wenn:
+
+* Ein Techniker kann eine Fahrkurve live beobachten
+* Die Visualisierung ist sofort verständlich
+* Das System ist stabil und reagiert flüssig
+* Stakeholder können das Potential klar erkennen
+* Projektfreigabe wird erteilt
+
+### 11.2 Produktionsversion ist erfolgreich, wenn:
+
+* Prüfstand-Techniker nutzen das Tool täglich
+* Messbare Zeitersparnis bei der Ventileinstellung
+* Konsistentere Ergebnisse zwischen Chargen
+* Positive Rückmeldungen von Endnutzern
+* System läuft stabil über mehrere Wochen ohne Ausfall
+
+---
+
+## 12. Technologie-Stack
+
+### 12.1 Backend (Python Listener)
+
+* **Sprache:** Python 3.13
+* **Libraries:**
+  * `python-can` – CAN-Bus Interface
+  * `websockets` – WebSocket Server
+  * `asyncio` – Async Event Loop
+* **OS:** Linux (NixOS, Debian, Ubuntu)
+* **CAN Interface:** SocketCAN (can0, vcan0)
+
+### 12.2 Frontend (Web UI)
+
+* **Framework:** Next.js 16 (React 19)
+* **Sprache:** TypeScript (mandatory)
+* **Styling:** Tailwind CSS 4
+* **Components:** shadcn/ui
+* **Charting:** TBD (siehe offene Entscheidungen)
+
+### 12.3 Entwicklungsumgebung
+
+* **Nix Flakes:** Reproduzierbare Dev-Shell für alle Abhängigkeiten
+* **Mock-System:** Vollständige Entwicklung ohne Hardware möglich
+* **vcan:** Virtuelles CAN-Interface für lokales Testing
+
+---
+
+## 13. Projektstruktur
+
+```
+ants-les02/
+├── listener/               # Python CAN Listener & WebSocket Server
+│   ├── main.py            # Entry Point
+│   ├── can_reader.py      # CAN Bus Interface
+│   ├── frames.py          # CAN Frame Parsing
+│   ├── events.py          # EventEnvelope Definition
+│   ├── websocket_server.py # WebSocket Broadcaster
+│   └── listener.design.md  # Detailed Design Doc (Listener)
+├── mock/                   # Mock-Datenquellen für Entwicklung
+├── web-ui/                 # Next.js Web UI
+│   └── webui-design-doc.md # Detailed Design Doc (Web UI)
+├── flake.nix               # Nix Development Environment
+├── start_dev.sh            # Dev Startup Script
+├── project-overview.md     # Dieses Dokument
+└── readme.md               # Quick Start Guide
 ```
 
 ---
 
-## 7. Datenquellen (austauschbar)
+## 14. Zeitplan und Status
 
-### 1. Live-CAN-Quelle
+**Aktueller Status (Januar 2026):**
 
-- liest Frames von `can0`
-- filtert IDs `0x80` und `0x81`
-- wandelt CAN-Payload in `PositionSample`
+* ✅ CAN-Frame-Parsing implementiert und getestet
+* ✅ WebSocket-Server funktionsfähig
+* ✅ Event-Protokoll definiert (`position_sample`)
+* ✅ Mock-System für Entwicklung ohne Hardware
+* ✅ Entwicklungsumgebung mit Nix Flakes
+* 🔄 Web-UI Grundstruktur vorhanden (Next.js 16, React 19)
+* 🔄 Charting-Implementierung in Arbeit
+* ⏳ Phase 1 Prototyp: In Entwicklung
+* ⏳ Phase 2: Planung
 
-### 2. Replay-Quelle
+**Nächste Schritte:**
 
-- liest CSV oder JSON mit gespeicherten Samples
-- reproduziert Zeitabstände
-
-### 3. Simulationsquelle (Mock)
-
-- erzeugt synthetische Fahrkurven (z. B. S-Kurve)
-- ideal für Entwicklung ohne Hardware
-
-Optional:
-
-- Nutzung von **vcan** (virtuelles CAN-Interface) unter Linux
-
----
-
-## 8. Signalverarbeitung
-
-### Geschwindigkeit
-
-```
-v[i] = (pos[i] - pos[i-1]) / Δt
-```
-
-### Beschleunigung (optional)
-
-```
-a[i] = (v[i] - v[i-1]) / Δt
-```
-
-### Wichtige Praxisregeln
-
-- Rohdatenrate: ~500 Hz
-- UI-Rate: 30–100 Hz
-- Downsampling und Glättung in Python
+1. Finalisierung der Live-Chart-Visualisierung
+2. Integration-Testing: Python Listener ↔ Web-UI
+3. Hardware-Test mit echtem LES02 Sensor
+4. User-Testing mit Prüfstand-Techniker
+5. Präsentation für Projektfreigabe
 
 ---
 
-## 9. Snapshot & Offline-POC
+## 15. Weitere Dokumente
 
-### Ablauf
-
-1. Messung für feste Dauer (z. B. 30 s)
-2. Speicherung der Samples (CSV)
-3. Auswertung mit NumPy
-4. Darstellung mit Matplotlib
-
-Ziel:
-
-- schneller Proof of Concept
-- Debugging der Signalqualität
+* **[listener.design.md](listener/listener.design.md)** – Detailliertes Design-Dokument für Python CAN Listener & WebSocket Server
+* **[webui-design-doc.md](web-ui/webui-design-doc.md)** – Detailliertes Design-Dokument für Next.js Web UI
+* **[websocket-protokoll.md](websocket-protokoll.md)** – Vollständige WebSocket-Event-Protokoll-Spezifikation
+* **[dataframe-auslesen.md](dataframe-auslesen.md)** – CAN-Datenframe-Struktur und Interpretation (LES02-spezifisch)
+* **[readme.md](readme.md)** – Quick Start Guide und Setup-Anleitung
 
 ---
 
-## 10. Live-Visualisierung (Web-UI)
-
-### Backend
-
-- Python
-- **FastAPI**
-- WebSocket-Endpunkt `/ws`
-- sendet reduzierte Datenrate (z. B. 50 Hz)
-
-### Frontend
-
-- React
-- WebSocket-Verbindung zum Backend
-- Live-Plot (z. B. Recharts, uPlot)
-
-### Datenfluss
-
-```
-CAN → Python → WebSocket → React → Graph
-```
-
----
-
-## 11. Entwicklungsstrategie
-
-### Phase 1 – Ohne Hardware
-
-- Simulation + vcan
-- Parser, Analyse, Plots
-
-### Phase 2 – Snapshot-Messungen
-
-- CSV-Logging
-- Offline-Auswertung
-
-### Phase 3 – Live vor Ort
-
-- echtes CAN-Interface
-- identischer Codepfad
-- ggf. Feintuning (Timing, Filter)
-
----
-
-## 12. Abgrenzung & Sicherheit
-
-- Kein Senden von CAN-Nachrichten
-- Keine Steuerung des Aufzugs
-- Keine sicherheitsrelevante Funktion
-- Tool dient ausschließlich Analyse & Visualisierung
-
----
-
-## 13. Erweiterungen (optional)
-
-- Start/Stop Trigger
-- Ringbuffer (letzte Fahrt)
-- Export (CSV, PNG)
-- Mehrere Kurven (Position, Geschwindigkeit, Beschleunigung)
-- Replay im Web-UI
-
----
-
-## 14. Zusammenfassung
-
-Das Projekt kombiniert:
-
-- industrielle Sensordaten (CAN)
-- saubere Software-Architektur
-- Offline- und Live-Auswertung
-- moderne Web-Visualisierung
-
-Durch Mocking, Simulation und vcan kann nahezu die komplette Entwicklung **vor dem realen Testaufbau** erfolgen.
+**Dokument-Version:** 1.0  
+**Zuletzt aktualisiert:** 2026-01-19  
+**Autor:** evilweasel  
+**Status:** Aktiv

@@ -1,362 +1,632 @@
-# LES02 Web UI
+# LES02 Web UI – Design Document
 
-**Design Document**
+**Next.js Frontend for Elevator Ride Curve Visualization**
+
+---
 
 ## 1. Overview
 
-### 1.1 Purpose
+This document describes the design and implementation of the Next.js-based web user interface for the LES02 ride curve analysis system. The Web UI is responsible for consuming live event streams via WebSocket, visualizing ride curves in real-time, and providing historical data browsing capabilities (Phase 2).
 
-This project provides a web-based user interface for technicians operating elevator component test benches.
-Its primary goal is to **visualize elevator ride curves in real time**, allowing technicians to objectively assess and fine-tune mechanical valve parameters to achieve an optimal, standardized ride profile.
+### Purpose
 
-In one sentence:
+The Web UI provides technicians with an **immediate, visual understanding of elevator ride characteristics** during test bench operation. It translates raw position data into actionable insights through live charts and overlays.
 
-> An internal tool for test bench technicians to visualize elevator ride curves in real time in order to reduce guesswork when mechanically adjusting control valves.
+### Key Responsibilities
 
----
-
-### 1.2 Context
-
-The company manufactures elevator components, primarily mechanical control valves.
-Due to manufacturing tolerances, each valve must be individually pre-adjusted on a test bench before shipment.
-
-Currently:
-
-* Valve tuning is done heuristically.
-* Multiple test runs are required.
-* Multiple mechanical parameters influence the ride curve, often with overlapping effects.
-* Test benches are a production bottleneck.
-
-The software is intended to:
-
-* Remove guesswork from the tuning process.
-* Improve consistency across batches.
-* Reduce tuning time per valve.
-* Establish a foundation for future data-driven optimization.
+* Establish and maintain WebSocket connection to Python listener
+* Receive and parse `EventEnvelope` messages
+* Render live-updating line charts (time vs. position)
+* Display connection status and diagnostics
+* Provide dark/light mode toggle
+* Browse and display historical rides (Phase 2)
+* Overlay reference curves for comparison (Phase 2)
 
 ---
 
-## 2. Target Users
+## 2. Technology Stack
 
-### Primary Users
+### 2.1 Core Framework
 
-* Test bench technicians
+* **Next.js 16** – React framework with App Router
+* **React 19** – UI library
+* **TypeScript** – Mandatory for all code
 
-### Secondary / Future Users
+### 2.2 Styling
 
-* Field service technicians
-* Installation technicians at customer sites
+* **Tailwind CSS 4** – Utility-first CSS framework
+* **shadcn/ui** – Component library for consistent design
+* **Dark mode first** – Primary theme with light mode support
 
-### User Characteristics
+### 2.3 Build & Development
 
-* Technically skilled, but not software developers
-* Expect reliability and clarity over feature richness
-* UI must be usable with minimal explanation
-
----
-
-## 3. Deployment & Runtime Context
-
-### 3.1 Initial Deployment
-
-* Stack runs locally on:
-
-  * Raspberry Pi mounted at the test bench **or**
-  * Technician laptop
-* No cloud dependency
-* No mandatory internet connection
-
-### 3.2 Future Possibilities (Out of Scope for Prototype)
-
-* Permanent installation inside an elevator
-* Long-term data collection for R&D
-* Automated parameter optimization
+* **Bun** – Fast JavaScript runtime and package manager
+* **ESLint** – Code quality and style enforcement
+* **TypeScript strict mode** – Maximum type safety
 
 ---
 
-## 4. System Architecture (High-Level)
+## 3. Architecture
 
-```mermaid
-flowchart TB
-    A[["Elevator / Test Bench"]]
-    B["Shaft Copying System"]
-    C("CAN Reader + Parser + WebSocket server")
-    D("Next.js Web UI with WebSocket client")
+### 3.1 Component Hierarchy
 
-    A --- B
-    B -- "CAN-Bus messages" --> C
-    C -- "WebSocket Event Messages" --> D
+```
+app/
+├── layout.tsx                 # Root layout with theme provider
+├── page.tsx                   # Main dashboard page
+└── components/
+    ├── LiveChart.tsx          # Real-time position chart
+    ├── ConnectionStatus.tsx   # WebSocket connection indicator
+    ├── ThemeToggle.tsx        # Dark/light mode switcher
+    └── HistoricalBrowser.tsx  # Ride history list (Phase 2)
 ```
 
-### Key Principles
+### 3.2 Data Flow
 
-* Simple and robust
-* No unnecessary distributed complexity
-* Fail-safe behavior preferred over feature completeness
-
----
-
-## 5. Data Sources
-
-### 5.1 Live Data (Prototype & Final)
-
-Live ride data is provided by a Python-based CAN bus listener and streamed to the Web UI via WebSocket.
-
-#### Transport
-
-* Protocol: WebSocket
-* Direction: Server → Client (broadcast-only)
-* Encoding: JSON
-* Message granularity: single sample per message
-
-There is **no request/response pattern**.
-The Web UI passively consumes a continuous stream of events.
+```
+WebSocket Server (ws://localhost:8765)
+    │
+    │ EventEnvelope (JSON)
+    ↓
+WebSocket Client Hook (useWebSocket)
+    │
+    │ Parsed Event
+    ↓
+State Management (React useState)
+    │
+    ├─→ Connection Status Component
+    ├─→ Live Chart Component
+    └─→ Data Buffer (position samples)
+```
 
 ---
 
-### 5.1.1 WebSocket Event Protocol
+## 4. WebSocket Integration
 
-All WebSocket messages follow a strict envelope format defined by the `EventEnvelope` data structure.
+### 4.1 Connection Management
 
-#### EventEnvelope Schema
+**Custom Hook:** `useWebSocket(url: string)`
 
-```json
-{
-  "proto": 1,
-  "type": "position_sample",
-  "ts": 1768823176.4770832,
-  "source": "les02",
-  "payload": { ... }
+```typescript
+interface UseWebSocketReturn {
+  isConnected: boolean;
+  lastEvent: EventEnvelope | null;
+  error: Error | null;
+  reconnect: () => void;
+}
+
+const { isConnected, lastEvent } = useWebSocket("ws://localhost:8765");
+```
+
+**Features:**
+
+* Automatic connection on mount
+* Automatic reconnection on disconnect (exponential backoff)
+* Parse JSON messages into `EventEnvelope` objects
+* Error handling and logging
+
+**Connection States:**
+
+* `CONNECTING` – Initial connection attempt
+* `CONNECTED` – Active WebSocket connection
+* `DISCONNECTED` – Connection lost, attempting reconnect
+* `ERROR` – Persistent connection failure
+
+### 4.2 Event Processing
+
+**Type Definition:**
+
+```typescript
+interface EventEnvelope {
+  proto: number;
+  type: string;
+  ts: number;
+  source: string;
+  payload: Record<string, any>;
+}
+
+interface PositionSamplePayload {
+  channel: "master" | "slave";
+  position_raw: number;
 }
 ```
 
-##### Fields
+**Event Handling:**
 
-| Field   | Type    | Description                                           |
-| ------- | ------- | ----------------------------------------------------- |
-| proto   | integer | Protocol version. Used for forward compatibility.     |
-| type    | string  | Event type identifier. Currently `"position_sample"`. |
-| ts      | number  | Unix timestamp in seconds (float, high precision).    |
-| source  | string  | Identifier of the emitting system (e.g. `"les02"`).   |
-| payload | object  | Event-specific data payload.                          |
-
----
-
-### 5.1.2 `position_sample` Event
-
-This is currently the **only event type** emitted by the listener and represents a single position measurement at a specific point in time.
-
-#### Payload Schema
-
-```json
-{
-  "channel": "master",
-  "position_raw": 144
-}
+```typescript
+useEffect(() => {
+  if (lastEvent?.type === "position_sample") {
+    const payload = lastEvent.payload as PositionSamplePayload;
+    addSample({
+      timestamp: lastEvent.ts,
+      channel: payload.channel,
+      position: payload.position_raw,
+    });
+  }
+}, [lastEvent]);
 ```
 
-##### Payload Fields
+---
 
-| Field        | Type   | Description                                             |
-| ------------ | ------ | ------------------------------------------------------- |
-| channel      | string | Measurement channel. Currently `"master"` or `"slave"`. |
-| position_raw | number | Raw position value as provided by the CAN bus.          |
+## 5. Live Chart Visualization
 
-Each incoming WebSocket message corresponds to **exactly one position sample**.
+### 5.1 Requirements
+
+**Phase 1 (Prototype):**
+
+* Line chart: X-axis = time, Y-axis = position
+* Live updates as events arrive
+* Smooth animation without jank
+* Auto-scaling axes
+* Clear visual distinction between master/slave channels
+
+**Phase 2:**
+
+* Reference curve overlay
+* Velocity derived curve (secondary Y-axis)
+* Acceleration derived curve (optional)
+* Zoom and pan controls
+* Export as PNG/SVG
+
+### 5.2 Charting Library (Open Decision)
+
+**Options under evaluation:**
+
+| Library                 | Pros                                            | Cons                                   |
+| ----------------------- | ----------------------------------------------- | -------------------------------------- |
+| **shadcn/ui charts**    | Consistent with design system, TypeScript-first | Limited live-update capabilities       |
+| **Recharts**            | Declarative API, React-friendly                 | Performance concerns at high frequency |
+| **uPlot**               | High performance, small bundle                  | Imperative API, steeper learning curve |
+| **Custom SVG/Canvas**   | Full control, optimized for our use case        | Development time, maintenance burden   |
+| **Framer Motion + SVG** | Smooth animations, React integration            | Performance unknown for live data      |
+
+**Decision Criteria:**
+
+1. Performance with 500 Hz data input (with downsampling)
+2. Maintainability and documentation quality
+3. Visual clarity and customization options
+4. Bundle size impact
+
+### 5.3 Data Management
+
+**Downsampling Strategy:**
+
+* **Input rate:** 500 Hz from WebSocket (one event every 2 ms)
+* **Display rate:** 30-60 Hz (UI refresh rate)
+* **Downsampling:** Keep every Nth sample or use time-based bucketing
+
+**Ring Buffer:**
+
+* Fixed-size buffer (e.g., last 10,000 samples)
+* Automatic eviction of oldest samples
+* Prevents unbounded memory growth during long rides
+
+**Code Example:**
+
+```typescript
+const MAX_SAMPLES = 10000;
+const [samples, setSamples] = useState<PositionSample[]>([]);
+
+const addSample = (sample: PositionSample) => {
+  setSamples((prev) => {
+    const updated = [...prev, sample];
+    if (updated.length > MAX_SAMPLES) {
+      return updated.slice(-MAX_SAMPLES);
+    }
+    return updated;
+  });
+};
+```
 
 ---
 
-### 5.1.3 Temporal Characteristics
+## 6. User Interface Design
 
-* Events are emitted at a high and steady frequency during a run.
-* Samples from different channels (`master`, `slave`) are interleaved.
-* Ordering is defined implicitly by the `ts` timestamp.
-* No explicit “run start” or “run end” events currently exist.
+### 6.1 Design Principles
 
-The Web UI must:
+* **Minimalistic** – Focus on the chart, minimal UI chrome
+* **Professional** – Technical, calm aesthetic
+* **Self-explanatory** – No manual required for basic operation
+* **Error transparency** – Never fail silently
 
-* Sort and process samples based on timestamp.
-* Decide how to visually represent multiple channels (overlay, toggle, or selection).
-* Handle partial or missing data gracefully.
+### 6.2 Layout (Phase 1)
+
+```
+┌────────────────────────────────────────────────────┐
+│ [Theme Toggle]  LES02 Ride Curve Analyzer          │
+│                                    [● Connected]    │
+├────────────────────────────────────────────────────┤
+│                                                    │
+│                                                    │
+│                 [Live Chart]                       │
+│              (Position vs. Time)                   │
+│                                                    │
+│                                                    │
+├────────────────────────────────────────────────────┤
+│ Status: Receiving data | Last update: 0.5s ago    │
+└────────────────────────────────────────────────────┘
+```
+
+### 6.3 Color Scheme
+
+**Dark Mode (Primary):**
+
+* Background: `#0a0a0a` (near black)
+* Card background: `#121212`
+* Text: `#e4e4e7` (zinc-200)
+* Accent: `#3b82f6` (blue-500)
+* Master channel: `#10b981` (green-500)
+* Slave channel: `#f59e0b` (amber-500)
+
+**Light Mode:**
+
+* Background: `#ffffff`
+* Card background: `#f9fafb` (gray-50)
+* Text: `#18181b` (zinc-900)
+* Accent: `#2563eb` (blue-600)
+* Master channel: `#059669` (green-600)
+* Slave channel: `#d97706` (amber-600)
+
+### 6.4 Typography
+
+* **Headings:** Inter font (via next/font)
+* **Body:** Inter font
+* **Monospace (for data):** JetBrains Mono or system monospace
 
 ---
 
-### 5.2 Historical Data (Final Version)
+## 7. Phase 1: Prototype Scope
 
-For the production version, completed runs will be persisted locally in a SQLite database.
+### 7.1 Features
 
-> Historical storage is **out of scope for the prototype** and intentionally underspecified at this stage.
+| Feature                 | Description                               | Priority     |
+| ----------------------- | ----------------------------------------- | ------------ |
+| WebSocket connection    | Establish connection to listener          | Must         |
+| Connection status UI    | Visual indicator (connected/disconnected) | Must         |
+| Live chart rendering    | Position vs. time line chart              | Must         |
+| Auto-scaling axes       | Chart adjusts to data range               | Must         |
+| Dark mode               | Primary theme                             | Must         |
+| Light mode toggle       | Switch between themes                     | Should       |
+| Channel differentiation | Visual distinction master/slave           | Should       |
+| Data rate display       | Show events/second                        | Nice to have |
 
-Conceptually:
+### 7.2 Out of Scope (Phase 1)
 
-* Each run represents a continuous sequence of `position_sample` events.
-* Samples will likely be stored as a JSON array to preserve temporal precision.
-* Metadata such as start/end timestamps will be stored separately.
-
-The Web UI should treat historical data as **structurally equivalent** to live data to maximize code reuse.
-
-> Note: Database schema is intentionally undefined at this stage.
-
----
-
-## 6. Functional Requirements
-
-### 6.1 Prototype Scope (Phase 1)
-
-**Single Page Application**
-
-Features:
-
-* Establish WebSocket connection
-* Receive live ride data
-* Render a live-updating line chart:
-
-  * X-axis: time
-  * Y-axis: position
-* Continuous updates during a run
-* Visual clarity over precision tooling
-
-Explicitly out of scope:
-
-* Persistence
-* Authentication
-* Configuration UI
 * Historical data browsing
+* Data persistence
+* Reference curve overlay
+* Export functionality
+* Velocity/acceleration calculation
+* Multi-ride comparison
+* User authentication
 
 ---
 
-### 6.2 Final Version Scope (Phase 2)
+## 8. Phase 2: Production Features
 
-Additional features:
+### 8.1 Historical Data Browser
 
-* Reference ride curve overlay (standardized curve)
-* Historical run browser:
+**UI Components:**
 
-  * Table of previous runs (date/time)
-  * Selectable entries
-* Comparison view:
+* Table of past rides (date, time, duration, distance)
+* Search and filter by date range
+* Click to load ride into chart
+* Delete rides
 
-  * Recorded run vs reference curve
-* Improved error reporting and diagnostics
+**Data Source:**
 
----
+* REST API endpoint to Python backend
+* Backend queries SQLite database
+* Returns ride metadata + full sample array
 
-## 7. UX & UI Design
+**API Design (Conceptual):**
 
-### 7.1 Design Principles
+```
+GET /api/rides              → List of ride metadata
+GET /api/rides/:id          → Full ride data (samples)
+DELETE /api/rides/:id       → Delete ride
+```
 
-* Minimalistic
-* Professional
-* Calm and technical
-* No visual clutter
-* Consistent design language
+### 8.2 Reference Curve Overlay
 
-### 7.2 Styling
+**Requirements:**
 
-* Primary theme: Dark mode
-* Light mode fully supported via toggle
-* UI components:
+* Load standardized "ideal" ride curve
+* Display as semi-transparent overlay on chart
+* Toggle visibility
+* Visual comparison: recorded vs. reference
 
-  * Prefer `shadcn/ui`
-  * Custom components must visually integrate with shadcn defaults
-* Typography and spacing follow Tailwind defaults
+**Reference Curve Format:**
 
-### 7.3 Layout (Prototype)
+* JSON array of `{time, position}` tuples
+* Normalized to relative time (0 = ride start)
+* Stored in database or loaded from file
 
-* Single page
-* Full-width chart as primary focus
-* Minimal status indicators:
+**UI Control:**
 
-  * Connection state
-  * Data flow indicator
+* Checkbox: "Show reference curve"
+* Dropdown: Select reference curve (multiple profiles)
 
----
+### 8.3 Derived Metrics
 
-## 8. Charting & Visualization
+**Velocity:**
 
-### 8.1 Requirements
+```typescript
+const calculateVelocity = (samples: PositionSample[]) => {
+  return samples.map((s, i) => {
+    if (i === 0) return { ...s, velocity: 0 };
+    const dt = samples[i].timestamp - samples[i - 1].timestamp;
+    const dp = samples[i].position - samples[i - 1].position;
+    return { ...s, velocity: dp / dt };
+  });
+};
+```
 
-* Live-updating line chart
-* Smooth visual updates
-* Must handle continuous incoming data
-* Clear differentiation of curves (later phase)
+**Acceleration:**
 
-### 8.2 Open Decision
+```typescript
+const calculateAcceleration = (samplesWithVelocity: VelocitySample[]) => {
+  return samplesWithVelocity.map((s, i) => {
+    if (i === 0) return { ...s, acceleration: 0 };
+    const dt = samplesWithVelocity[i].timestamp - samplesWithVelocity[i - 1].timestamp;
+    const dv = samplesWithVelocity[i].velocity - samplesWithVelocity[i - 1].velocity;
+    return { ...s, acceleration: dv / dt };
+  });
+};
+```
 
-Charting library not yet finalized:
+**Display:**
 
-* shadcn/ui charts
-* Recharts
-* Custom SVG/Canvas implementation
-* Framer Motion assisted rendering
-
-Decision criteria:
-
-* Performance with live data
-* Maintainability
-* Visual clarity
-
----
-
-## 9. Error Handling & Stability
-
-### Core Requirement
-
-> The software must never silently fail.
-
-### Examples
-
-* WebSocket disconnected:
-
-  * Clear UI message
-  * Automatic reconnect
-* No incoming data:
-
-  * Explicit “waiting for data” state
-* Partial data:
-
-  * Display what is available
-  * No crashes
+* Toggle buttons: "Position | Velocity | Acceleration"
+* Multi-series chart (position + velocity + acceleration)
 
 ---
 
-## 10. Technical Guidelines
+## 9. Error Handling
 
-* Next.js 16
-* React 19
-* Modern App Router architecture
-* TypeScript mandatory
-* Code, comments, and technical documentation in English
-* User-facing texts in German
-* Clean separation of concerns
-* Maintainable and readable code preferred over micro-optimizations
+### 9.1 Connection Errors
 
----
+| Error Condition             | User Feedback                        | Handling                                  |
+| --------------------------- | ------------------------------------ | ----------------------------------------- |
+| WebSocket connection failed | Red indicator + "Disconnected"       | Auto-retry with backoff                   |
+| Connection lost during ride | Orange indicator + "Reconnecting..." | Attempt reconnect, preserve buffered data |
+| Server not reachable        | Red indicator + "Server offline"     | Manual retry button                       |
 
-## 11. Non-Goals
+### 9.2 Data Errors
 
-* No cloud backend
-* No user accounts
-* No real-time valve control
-* No predictive or automated tuning (for now)
-* No premature optimization
+| Error Condition        | User Feedback                | Handling                           |
+| ---------------------- | ---------------------------- | ---------------------------------- |
+| Malformed JSON         | Console error + skip message | Continue processing next message   |
+| Unknown event type     | Console warning              | Ignore unknown event               |
+| Missing payload fields | Console error + skip         | Validate payload before processing |
 
----
+### 9.3 UI Error Boundaries
 
-## 12. Success Criteria
-
-### Prototype is successful if:
-
-* A technician can visually assess a ride curve live
-* The UI is stable and responsive
-* The visualization is immediately understandable
-* Stakeholders can clearly see future potential
+* React Error Boundary wraps main chart component
+* Fallback UI: "Chart error occurred. [Reload]"
+* Prevents entire app crash from chart rendering errors
 
 ---
 
-## 13. Open Questions
+## 10. Performance Optimization
 
-* Final WebSocket message format
-* Exact definition of a “reference ride curve”
-* Charting library choice
-* Hardware constraints of target Raspberry Pi
+### 10.1 React Optimization
+
+* **useMemo:** Memoize expensive calculations (velocity, acceleration)
+* **useCallback:** Prevent unnecessary re-renders
+* **React.memo:** Wrap chart component if re-renders are costly
+* **Virtual scrolling:** For historical ride list (Phase 2)
+
+### 10.2 WebSocket Optimization
+
+* **Batching:** Process multiple events in single render cycle
+* **Throttling:** Limit chart updates to 60 FPS
+* **Backpressure:** If processing can't keep up, drop frames intelligently
+
+### 10.3 Bundle Optimization
+
+* **Code splitting:** Lazy load Phase 2 features
+* **Tree shaking:** Remove unused shadcn/ui components
+* **Font subsetting:** Load only required glyphs
+
+**Target Bundle Size:**
+
+* Initial load: < 150 KB gzipped
+* Full app (Phase 2): < 300 KB gzipped
+
+---
+
+## 11. Development Workflow
+
+### 11.1 Local Development
+
+**Start Dev Server:**
+
+```bash
+cd web-ui
+bun install      # First time only
+bun run dev      # Start Next.js dev server
+```
+
+**Access:**
+
+* Web UI: http://localhost:3000
+* WebSocket: ws://localhost:8765 (listener must be running)
+
+**Hot Reload:**
+
+* File changes trigger instant reload
+* WebSocket connection persists across reloads
+
+### 11.2 Integrated Testing
+
+**Full Stack:**
+
+```bash
+./start_dev.sh  # Starts listener + mock + debug client
+# Manually start web-ui in separate terminal:
+cd web-ui && bun run dev
+```
+
+**Test Scenarios:**
+
+1. **Live data:** Listener + Mock → Web UI displays moving chart
+2. **Reconnection:** Stop listener → UI shows disconnected → Restart listener → Auto-reconnect
+3. **No data:** Listener running, no mock → UI shows "Waiting for data"
+
+---
+
+## 12. Deployment
+
+### 12.1 Build for Production
+
+```bash
+cd web-ui
+bun run build    # Creates optimized production build
+bun run start    # Runs production server
+```
+
+### 12.2 Raspberry Pi Deployment
+
+**Option 1: Node.js production server**
+
+```bash
+bun run build
+bun run start    # Runs on port 3000
+```
+
+**Option 2: Static export + nginx**
+
+```javascript
+// next.config.ts
+const config = {
+  output: 'export',  // Generate static HTML/CSS/JS
+};
+```
+
+Serve static files with nginx or Python `http.server`.
+
+**WebSocket URL Configuration:**
+
+* Development: `ws://localhost:8765`
+* Production: `ws://<raspberry-pi-ip>:8765`
+* Environment variable: `NEXT_PUBLIC_WS_URL`
+
+---
+
+## 13. Accessibility
+
+### 13.1 Requirements
+
+* **Keyboard navigation:** All interactive elements accessible via keyboard
+* **ARIA labels:** Proper labels for status indicators and buttons
+* **Focus indicators:** Visible focus states
+* **Color contrast:** WCAG AA compliant (4.5:1 for normal text)
+
+### 13.2 Screen Reader Support
+
+* Connection status announced on change
+* Data flow changes announced (optional, may be too noisy)
+* Error messages announced with `role="alert"`
+
+---
+
+## 14. Internationalization
+
+**Phase 1:** German only (hardcoded strings)
+
+**Phase 2 (optional):**
+
+* `next-intl` or built-in i18n
+* Language toggle: German ↔ English
+* Translation files: `locales/de.json`, `locales/en.json`
+
+**String Examples:**
+
+* German: "Verbunden", "Getrennt", "Fahrkurve"
+* English: "Connected", "Disconnected", "Ride Curve"
+
+---
+
+## 15. Testing Strategy
+
+### 15.1 Unit Tests (Future)
+
+* **Library:** Vitest or Jest
+* **Coverage:** Utility functions (velocity calculation, data parsing)
+
+### 15.2 Integration Tests (Future)
+
+* **Library:** Playwright
+* **Scenarios:**
+  * WebSocket connection establishment
+  * Chart rendering with mock data
+  * Theme toggle functionality
+
+### 15.3 Manual Testing
+
+* Test on Chrome, Firefox, Safari
+* Test on tablet (touch interactions)
+* Test with real CAN hardware at test bench
+
+---
+
+## 16. Known Limitations
+
+### 16.1 Browser Compatibility
+
+* **Target:** Modern browsers (Chrome 90+, Firefox 88+, Safari 14+)
+* **Not supported:** Internet Explorer
+
+### 16.2 Performance
+
+* High-frequency data (500 Hz) requires downsampling for smooth rendering
+* Chart may lag with 10+ concurrent clients (unlikely scenario)
+
+### 16.3 WebSocket Reliability
+
+* No message persistence: if connection drops, data during dropout is lost
+* Phase 2 mitigation: Buffer on server side with reconnect recovery
+
+---
+
+## 17. Future Enhancements
+
+### 17.1 Advanced Charting
+
+* Cursor crosshair with value display
+* Time range selection (zoom to specific interval)
+* Multiple Y-axes (position, velocity, acceleration)
+* Annotations (mark interesting points)
+
+### 17.2 Data Export
+
+* Export ride as CSV (timestamp, position, velocity, acceleration)
+* Export chart as PNG/SVG
+* Print-friendly ride report
+
+### 17.3 Real-Time Collaboration
+
+* Multiple technicians view same live ride (already supported)
+* Shared cursor position
+* Comments/annotations (requires backend changes)
+
+### 17.4 Predictive Insights
+
+* "Current ride quality score" based on reference curve deviation
+* Suggested valve adjustments (AI/ML, long-term)
+
+---
+
+## 18. Related Documents
+
+* **[project-overview.md](../project-overview.md)** – High-level project documentation
+* **[listener.design.md](../listener/listener.design.md)** – Python listener design document
+* **[websocket-protokoll.md](../websocket-protokoll.md)** – WebSocket event protocol specification
+
+---
+
+**Document Version:** 2.0  
+**Last Updated:** 2026-01-19  
+**Author:** evilweasel  
+**Status:** Active
