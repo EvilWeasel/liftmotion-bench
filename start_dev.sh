@@ -48,7 +48,7 @@ sleep 0.3
 
 # Start mock
 echo "  🎭 Starting mock..."
-start_in_terminal "LES02 Mock" "python -m mock.mock_les02_realistic"
+start_in_terminal "LES02 Mock" "python -m mock.mock_les02"
 
 # Small delay
 sleep 0.3
