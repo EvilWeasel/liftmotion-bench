@@ -84,13 +84,8 @@ Empfohlene Dev-Shell:
 ```nix
 pkgs.mkShell {
   packages = with pkgs; [
-    python312
-    python312Packages.python-can
-    python312Packages.numpy
-    python312Packages.matplotlib
-    python312Packages.pandas
-    python312Packages.fastapi
-    python312Packages.uvicorn
+    python313
+    python313Packages.python-can
     can-utils
   ];
 }
