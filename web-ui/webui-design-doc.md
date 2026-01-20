@@ -623,10 +623,3 @@ Serve static files with nginx or Python `http.server`.
 * **[project-overview.md](../project-overview.md)** – High-level project documentation
 * **[listener.design.md](../listener/listener.design.md)** – Python listener design document
 * **[websocket-protokoll.md](../websocket-protokoll.md)** – WebSocket event protocol specification
-
----
-
-**Document Version:** 2.0  
-**Last Updated:** 2026-01-19  
-**Author:** evilweasel  
-**Status:** Active
