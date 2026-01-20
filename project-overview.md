@@ -18,7 +18,7 @@ Dieses Projekt entwickelt ein Software-Werkzeug zur **Echtzeit-Visualisierung vo
 
 ### 2.1 Ist-Zustand (Current State)
 
-Unser Unternehmen fertigt Aufzugkomponenten, primär mechanische Steuerventile. Aufgrund von Fertigungstoleranzen muss jedes Ventil vor der Auslieferung auf einem Prüfstand individuell mechanisch voreingestellt werden.
+Einsatz in Unternehmen welche Aufzugkomponenten fertigen, primär mechanische Steuerventile. Aufgrund von Fertigungstoleranzen muss jedes Ventil vor der Auslieferung auf einem Prüfstand individuell mechanisch voreingestellt werden.
 
 **Aktuelle Probleme:**
 
@@ -47,7 +47,7 @@ Unser Unternehmen fertigt Aufzugkomponenten, primär mechanische Steuerventile. 
 
 **Umfang:**
 
-* Erfassung von Positionsdaten über CAN-Bus vom LES02 Schachtkopiersystem
+* Erfassung von Positionsdaten über CAN-Bus vom LES02 Schachtkopiersystem (Mock)
 * Echtzeit-Berechnung von Geschwindigkeit aus Positionsdaten
 * Live-Visualisierung als Liniendiagramm im Web-UI
 * Stabiler Betrieb während Testfahrten
@@ -81,7 +81,7 @@ Das Projekt umfasst **explizit nicht:**
 * **Steuerungsfunktion:** Tool ist rein analytisch, keine CAN-Nachrichten werden gesendet
 * **Automatische Ventileinstellung:** Keine Regelung oder automatisierte Anpassung (perspektivisch möglich)
 * **Sicherheitsrelevante Funktionen:** Keine Safety-Critical-Features
-* **Mobile Apps:** Fokus auf Web-UI für Desktop/Tablet
+* **Mobile Apps:** Fokus auf Web-UI für Desktop/Tablet mit CAN-Bus support
 
 ---
 
@@ -100,7 +100,7 @@ Das Projekt umfasst **explizit nicht:**
 ### 5.3 Nutzer-Charakteristika
 
 * Technisch versiert, aber keine Software-Entwickler
-* Erwartung: Zuverlässigkeit und Klarheit vor Feature-Reichtum
+* Erwartung: Zuverlässigkeit und Ease-of-Use
 * UI muss ohne ausführliche Erklärung nutzbar sein
 * Arbeitsumgebung: industrieller Prüfstand, möglicherweise rau/laut
 
@@ -121,34 +121,34 @@ Das Projekt umfasst **explizit nicht:**
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  Elevator / Test Bench                                  │
-│  ↓                                                       │
-│  Kübler Ants LES02 Shaft Copying System                │
+│  ↓                                                      │
+│  Kübler Ants LES02 Shaft Copying System                 │
 └─────────────────────────────────────────────────────────┘
                     │
                     │ CAN-Bus (250 kbit/s, SocketCAN)
                     ↓
 ┌─────────────────────────────────────────────────────────┐
-│  Python CAN Listener & WebSocket Server                │
-│  ├── CAN Reader (can0 / vcan0)                         │
-│  ├── Frame Parser (Position, Status, Error, System)    │
-│  ├── Event Generator (EventEnvelope)                   │
-│  └── WebSocket Broadcaster (ws://localhost:8765)       │
+│  Python CAN Listener & WebSocket Server                 │
+│  ├── CAN Reader (can0 / vcan0)                          │
+│  ├── Frame Parser (Position, Status, Error, System)     │
+│  ├── Event Generator (EventEnvelope)                    │
+│  └── WebSocket Broadcaster (ws://localhost:8765)        │
 └─────────────────────────────────────────────────────────┘
                     │
                     │ WebSocket (JSON Events)
                     ↓
 ┌─────────────────────────────────────────────────────────┐
 │  Next.js Web UI                                         │
-│  ├── WebSocket Client                                  │
-│  ├── Live Chart Visualization                          │
-│  ├── Historical Data Browser (Phase 2)                 │
-│  └── Reference Curve Overlay (Phase 2)                 │
+│  ├── WebSocket Client                                   │
+│  ├── Live Chart Visualization                           │
+│  ├── Historical Data Browser (Phase 2)                  │
+│  └── Reference Curve Overlay (Phase 2)                  │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ### 6.3 Datenfluss
 
-1. **Sensor → CAN-Bus:** LES02 sendet absolute Positionswerte alle 2ms
+1. **Sensor → CAN-Bus:** LES02 sendet absolute Positionswerte alle 2ms (abwechselnd Master/Slave -> Plausibilitätsprüfung)
 2. **CAN → Python:** CAN-Reader filtert Position-Frames (ID 0x80/0x81)
 3. **Python → WebSocket:** Parser erstellt `position_sample` Events
 4. **WebSocket → Web-UI:** Browser empfängt Events als JSON-Stream
@@ -201,12 +201,12 @@ Das Projekt umfasst **explizit nicht:**
 | Requirement ID | Beschreibung                                                      | Priorität |
 | -------------- | ----------------------------------------------------------------- | --------- |
 | FR-P1-01       | System empfängt CAN Position-Frames von LES02                     | Muss      |
-| FR-P1-02       | System parsed Positionswerte aus CAN-Payload (24-Bit MSB)         | Muss      |
+| FR-P1-02       | System parsed Positionswerte aus CAN-Payload                      | Muss      |
 | FR-P1-03       | System broadcasted `position_sample` Events via WebSocket         | Muss      |
 | FR-P1-04       | Web-UI empfängt Events und zeigt Live-Chart (Zeit/Position)       | Muss      |
 | FR-P1-05       | Chart aktualisiert sich kontinuierlich während Fahrt              | Muss      |
 | FR-P1-06       | System zeigt Verbindungsstatus (WebSocket connected/disconnected) | Muss      |
-| FR-P1-07       | System funktioniert mit Mock-Datenquelle (ohne echtes CAN)        | Sollte    |
+| FR-P1-07       | System funktioniert mit Mock-Datenquelle (ohne echtes CAN)        | Muss      |
 | FR-P1-08       | UI ist im Dark Mode optimiert                                     | Sollte    |
 
 ### 8.2 Phase 2 (Produktionsversion)
@@ -234,26 +234,30 @@ Das Projekt umfasst **explizit nicht:**
 * **Event-Driven:** Unidirektionaler Datenfluss (Sensor → Parser → WebSocket → UI)
 * **Stateless Communication:** WebSocket ist broadcast-only, keine Request/Response-Pattern
 
-### 9.2 Datenmodell
+### 9.2 EventEnvelope Datenmodell
 
-Alle Komponenten arbeiten mit einem einheitlichen Datenmodell:
+**EventEnvelope** ist ein eigens entwickelter Kommunikations-Standard für diesen Stack. Aktuell wird er ausschließlich für das unidirektionale Senden von `position_sample`-Events vom Python-Modul zum Next.js WebUI genutzt. Das Datenmodell ist aber so gestaltet, dass in Zukunft leicht weitere Typen (wie `run_start`, `run_stop` oder auch Kommandos in Richtung Python-Modul) und Payloads hinzugefügt werden können.
+
+Definition:
 
 ```python
 @dataclass
 class EventEnvelope:
-    proto: int          # Protocol version
-    type: str           # "position_sample"
-    ts: float           # Unix timestamp (seconds, high precision)
-    source: str         # "les02"
-    payload: dict       # {"channel": "master", "position_raw": 12345}
+    proto: int          # Protokollversion (z.B. 1)
+    type: str           # Event-Typ, z.B. "position_sample", später evtl. auch "run_start", "run_stop", etc.
+    ts: float           # Unix-Timestamp (Sekunden, hohe Präzision)
+    source: str         # Datenquelle, z.B. "les02"
+    payload: dict       # Flexible Payload, z.B. {"channel": "master", "position_raw": 12345}
 ```
+
+*Hinweis: Die Erweiterbarkeit auf neue Eventtypen und Richtungen (z.B. Kommandos von der WebUI zum Python-Modul) ist möglich aber aktuell nicht geplant.*
 
 ### 9.3 UX Principles
 
 * **Minimalistisch:** Fokus auf Kernfunktionalität
 * **Professionell:** Technisches, ruhiges Design
 * **Selbsterklärend:** Keine Dokumentation nötig für Basis-Features
-* **Fehler-Transparenz:** System muss niemals lautlos scheitern
+* **Fehler-Transparenz:** Fehlerzustände müssen immer klar kommuniziert werden und dürfen nicht unbemerkt bleiben
 
 ---
 
@@ -274,7 +278,7 @@ Die folgenden Punkte sind noch nicht final spezifiziert:
 
 ## 11. Erfolgskriterien
 
-### 11.1 Prototyp ist erfolgreich, wenn:
+### 11.1 Prototyp
 
 * Ein Techniker kann eine Fahrkurve live beobachten
 * Die Visualisierung ist sofort verständlich
@@ -282,7 +286,7 @@ Die folgenden Punkte sind noch nicht final spezifiziert:
 * Stakeholder können das Potential klar erkennen
 * Projektfreigabe wird erteilt
 
-### 11.2 Produktionsversion ist erfolgreich, wenn:
+### 11.2 Produktionsversion
 
 * Prüfstand-Techniker nutzen das Tool täglich
 * Messbare Zeitersparnis bei der Ventileinstellung
@@ -373,10 +377,3 @@ ants-les02/
 * **[websocket-protokoll.md](websocket-protokoll.md)** – Vollständige WebSocket-Event-Protokoll-Spezifikation
 * **[dataframe-auslesen.md](dataframe-auslesen.md)** – CAN-Datenframe-Struktur und Interpretation (LES02-spezifisch)
 * **[readme.md](readme.md)** – Quick Start Guide und Setup-Anleitung
-
----
-
-**Dokument-Version:** 1.0  
-**Zuletzt aktualisiert:** 2026-01-19  
-**Autor:** evilweasel  
-**Status:** Aktiv

@@ -638,10 +638,3 @@ file = "/var/log/les02-listener.log"
 * **[websocket-protokoll.md](../websocket-protokoll.md)** – WebSocket event protocol specification
 * **[dataframe-auslesen.md](../dataframe-auslesen.md)** – CAN frame structure and LES02 protocol details
 * **[webui-design-doc.md](../web-ui/webui-design-doc.md)** – Web UI design document
-
----
-
-**Document Version:** 1.0  
-**Last Updated:** 2026-01-19  
-**Author:** evilweasel  
-**Status:** Active
