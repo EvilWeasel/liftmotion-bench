@@ -5,7 +5,7 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LiveChart } from "@/components/LiveChart";
-import type { PositionSample, PositionSamplePayload } from "@/lib/types";
+import type { PositionState, PositionStatePayload } from "@/lib/types";
 
 const MAX_SAMPLES = 10000;
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8765";
@@ -13,7 +13,7 @@ const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8765";
 export default function Home() {
   const { isConnected, connectionState, lastEvent, error, reconnect, eventCount } =
     useWebSocket(WS_URL);
-  const [samples, setSamples] = useState<PositionSample[]>([]);
+  const [samples, setSamples] = useState<PositionState[]>([]);
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
 
   // Process incoming events
@@ -21,11 +21,9 @@ export default function Home() {
     if (!lastEvent) return;
 
     if (lastEvent.type === "position_sample") {
-      const payload = lastEvent.payload as PositionSamplePayload;
-      const newSample: PositionSample = {
+      const payload = lastEvent.payload as PositionStatePayload;
+      const newSample: PositionState = {
         timestamp: lastEvent.ts,
-        channel: payload.channel,
-        position: payload.position,
         position_raw: payload.position_raw,
       };
 
