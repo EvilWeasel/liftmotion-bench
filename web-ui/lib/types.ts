@@ -15,8 +15,18 @@ export interface EventEnvelope {
   type: string;
   ts: number;
   source: string;
-  payload: Record<string, unknown>;
+  payload: MotionSample;
 }
 
-export type ConnectionState = "CONNECTING" | "CONNECTED" | "DISCONNECTED" | "ERROR";
+export type ConnectionState =
+  | "CONNECTING"
+  | "CONNECTED"
+  | "DISCONNECTED"
+  | "ERROR";
 
+export interface MotionSample {
+  timestamp: number; // ms
+  position_mm: number;
+  velocity_mm_s: number;
+  acceleration_mm_s2: number;
+}

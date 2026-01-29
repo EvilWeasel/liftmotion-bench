@@ -17,6 +17,7 @@ pkgs.mkShell {
     pythonPackages.fastapi
     pythonPackages.uvicorn
     pythonPackages.websockets
+    pythonPackages.scipy
 
     # CAN tooling
     can-utils

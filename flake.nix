@@ -25,6 +25,7 @@
           pythonPackages.matplotlib
           pythonPackages.pandas
           pythonPackages.websockets
+          pythonPackages.scipy
 
           # CAN tooling
           can-utils
