@@ -1,7 +1,7 @@
 import can
 import time
 import itertools
-import math
+from enum import Enum, auto
 
 # =========================
 # CAN setup
@@ -9,124 +9,137 @@ import math
 bus = can.interface.Bus(channel="vcan0", interface="socketcan")
 
 MASTER_ID = 0x80
-SLAVE_ID  = 0x81
+SLAVE_ID = 0x81
 id_cycle = itertools.cycle([MASTER_ID, SLAVE_ID])
 
 # =========================
 # Simulation parameters
 # =========================
-DISTANCE_M = 10.0          # meters
-MAX_V = 1.5               # m/s (increased for more visible difference)
-ACC = 0.4                 # m/s² (reduced for slower, more visible acceleration)
-SEND_FREQUENCY_HZ = 10   # Hz (messages per second)
-DT = 1.0 / SEND_FREQUENCY_HZ  # Time step in seconds
-PAUSE_TIME = 5.0          # seconds
+DISTANCE_M = 10.0
+MAX_V = 1.5
+ACC = 0.4
 
-# LES02 uses absolute position (we choose 1 unit = 1 mm)
-UNITS_PER_METER = 1000
+SEND_FREQUENCY_HZ = 10
+DT = 1.0 / SEND_FREQUENCY_HZ
+
+PAUSE_TIME = 5.0
+
+UNITS_PER_METER = 1000  # 1 unit = 1 mm
 
 # =========================
 # Derived values
 # =========================
-t_acc = MAX_V / ACC
-d_acc = 0.5 * ACC * t_acc ** 2
+T_ACC = MAX_V / ACC
+D_ACC = 0.5 * ACC * T_ACC ** 2
 
-if 2 * d_acc > DISTANCE_M:
+if 2 * D_ACC > DISTANCE_M:
     raise ValueError("Distance too short for given acceleration")
 
-d_const = DISTANCE_M - 2 * d_acc
-t_const = d_const / MAX_V
+D_CONST = DISTANCE_M - 2 * D_ACC
+T_CONST = D_CONST / MAX_V
 
 # =========================
-# Helper functions
+# CAN helper
 # =========================
-def send_position(position_units):
+
+
+def send_position(position_m: float):
+    position_units = int(position_m * UNITS_PER_METER) & 0xFFFFFF
     can_id = next(id_cycle)
-
-    pos = int(position_units) & 0xFFFFFF
-
-    data = [
-        (pos >> 16) & 0xFF,
-        (pos >> 8) & 0xFF,
-        pos & 0xFF,
-        0x00
-    ]
 
     msg = can.Message(
         arbitration_id=can_id,
-        data=data,
+        data=[
+            (position_units >> 16) & 0xFF,
+            (position_units >> 8) & 0xFF,
+            position_units & 0xFF,
+            0x00
+        ],
         is_extended_id=False
     )
 
     bus.send(msg)
 
 # =========================
-# Motion profile
+# Motion generators
 # =========================
-def run_trip(direction=1):
-    # Start position: 0m when going up, DISTANCE_M when going down
-    position = DISTANCE_M if direction < 0 else 0.0
-    velocity = 0.0
-    traveled = 0.0
 
-    # Acceleration phase
+
+def accel_phase(direction: int):
     t = 0.0
-    while t < t_acc:
-        velocity = ACC * t
-        position += velocity * DT * direction
-        traveled += abs(velocity * DT)
-        
-        # Clamp position to valid range [0, DISTANCE_M]
-        position = max(0.0, min(DISTANCE_M, position))
-
-        send_position(position * UNITS_PER_METER)
-        time.sleep(DT)
+    while t < T_ACC:
+        yield ACC * t * direction
         t += DT
 
-    # Constant speed
-    t = 0.0
-    while t < t_const:
-        velocity = MAX_V
-        position += velocity * DT * direction
-        traveled += abs(velocity * DT)
-        
-        # Clamp position to valid range [0, DISTANCE_M]
-        position = max(0.0, min(DISTANCE_M, position))
 
-        send_position(position * UNITS_PER_METER)
-        time.sleep(DT)
+def constant_phase(direction: int):
+    t = 0.0
+    while t < T_CONST:
+        yield MAX_V * direction
         t += DT
 
-    # Deceleration
-    t = 0.0
-    while t < t_acc:
-        velocity = MAX_V - ACC * t
-        position += velocity * DT * direction
-        traveled += abs(velocity * DT)
-        
-        # Clamp position to valid range [0, DISTANCE_M]
-        position = max(0.0, min(DISTANCE_M, position))
 
-        send_position(position * UNITS_PER_METER)
-        time.sleep(DT)
+def decel_phase(direction: int):
+    t = 0.0
+    while t < T_ACC:
+        yield (MAX_V - ACC * t) * direction
         t += DT
-    
-    # Ensure final position is exactly at target (0 or DISTANCE_M)
-    final_position = DISTANCE_M if direction > 0 else 0.0
-    send_position(final_position * UNITS_PER_METER)
+
+
+def pause_phase():
+    t = 0.0
+    while t < PAUSE_TIME:
+        yield 0.0
+        t += DT
+
+# =========================
+# Motion state machine
+# =========================
+
+
+class Phase(Enum):
+    UP = auto()
+    PAUSE_TOP = auto()
+    DOWN = auto()
+    PAUSE_BOTTOM = auto()
+
+
+def motion_sequence():
+    while True:
+        yield from accel_phase(+1)
+        yield from constant_phase(+1)
+        yield from decel_phase(+1)
+        yield from pause_phase()
+
+        yield from accel_phase(-1)
+        yield from constant_phase(-1)
+        yield from decel_phase(-1)
+        yield from pause_phase()
+
 
 # =========================
 # Main loop
 # =========================
 print("🚦 LES02 elevator motion mock started")
 
-direction = 1
+position = 0.0
+velocity = 0.0
 
-print(f"Running first trip in 5 seconds...")
-time.sleep(5)
+sequence = motion_sequence()
+next_tick = time.monotonic()
+
 while True:
-    print(f"Running trip")
-    run_trip(direction=direction)
-    print(f"Reached end position, pausing for {PAUSE_TIME} seconds...")
-    time.sleep(PAUSE_TIME)
-    direction *= -1
+    velocity = next(sequence)
+    position += velocity * DT
+
+    # Clamp to shaft limits
+    position = max(0.0, min(DISTANCE_M, position))
+
+    print(f"Sending position: {position:.3f} m")
+    send_position(position)
+
+    # Fixed-rate timing
+    next_tick += DT
+    sleep_time = next_tick - time.monotonic()
+    if sleep_time > 0:
+        time.sleep(sleep_time)

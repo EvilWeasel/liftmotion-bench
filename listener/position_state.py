@@ -20,8 +20,8 @@ class PositionState:
         self.publish_interval = publish_interval_ms / 1000.0
         self._window_size = window_size
 
-        self._last_master: int
-        self._last_slave: int
+        self._last_master: int = 0
+        self._last_slave: int = 0
 
         self._last_emit_ts: float = 0.0
 

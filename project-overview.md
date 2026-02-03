@@ -31,7 +31,7 @@ Einsatz in Unternehmen welche Aufzugkomponenten fertigen, primär mechanische St
 
 ### 2.2 Soll-Zustand (Target State)
 
-* **Objektive Bewertung:** Fahrkurven werden in Echtzeit visualisiert und können mit Referenzkurven verglichen werden
+* **Objektive Bewertung:** Fahrkurven werden in Echtzeit visualisiert und können mit Referenzkurve verglichen werden
 * **Reduzierte Einstellzeit:** Techniker sehen sofort die Auswirkung mechanischer Anpassungen
 * **Konsistente Qualität:** Standardisierte, reproduzierbare Einstellung über alle Ventile hinweg
 * **Datengetriebene Optimierung:** Grundlage für zukünftige automatisierte Parameteroptimierung
@@ -48,8 +48,8 @@ Einsatz in Unternehmen welche Aufzugkomponenten fertigen, primär mechanische St
 **Umfang:**
 
 * Erfassung von Positionsdaten über CAN-Bus vom LES02 Schachtkopiersystem (Mock)
-* Echtzeit-Berechnung von Geschwindigkeit aus Positionsdaten
-* Live-Visualisierung als Liniendiagramm im Web-UI
+* Echtzeit-Berechnung von Geschwindigkeit und Beschleunigung aus Positionsdaten
+* Live-Visualisierung als Diagramm im Web-UI
 * Stabiler Betrieb während Testfahrten
 * Demonstration des Potentials für Stakeholder
 
@@ -81,7 +81,7 @@ Das Projekt umfasst **explizit nicht:**
 * **Steuerungsfunktion:** Tool ist rein analytisch, keine CAN-Nachrichten werden gesendet
 * **Automatische Ventileinstellung:** Keine Regelung oder automatisierte Anpassung (perspektivisch möglich)
 * **Sicherheitsrelevante Funktionen:** Keine Safety-Critical-Features
-* **Mobile Apps:** Fokus auf Web-UI für Desktop/Tablet mit CAN-Bus support
+* **Mobile Apps:** Fokus auf Web-UI für Desktop/Tablet Ansicht mit CAN-Bus support
 
 ---
 
@@ -112,7 +112,7 @@ Das Projekt umfasst **explizit nicht:**
 
 * **Einfach und robust** vor Feature-Reichtum
 * **Strikte Trennung** von Datenquelle, Verarbeitung und Visualisierung
-* **Lokale Ausführung** ohne Cloud-Abhängigkeit
+* **Lokale Ausführung** ohne Cloud-Abhängigkeit, Zugriff auf WebUI nur auf gleicher Hardware oder lokales Netzwerk (RFC-1918)
 * **Fail-Safe Verhalten** bevorzugt vor Feature-Vollständigkeit
 * **Austauschbare Datenquellen** (Live CAN, Mock, Replay)
 
@@ -149,10 +149,10 @@ Das Projekt umfasst **explizit nicht:**
 ### 6.3 Datenfluss
 
 1. **Sensor → CAN-Bus:** LES02 sendet absolute Positionswerte alle 2ms (abwechselnd Master/Slave -> Plausibilitätsprüfung)
-2. **CAN → Python:** CAN-Reader filtert Position-Frames (ID 0x80/0x81)
-3. **Python → WebSocket:** Parser erstellt `position_sample` Events
+2. **CAN → Python:** CAN-Reader filtert Position-Frames und verarbeitet diese in Lesbare Werte für Position, Geschwindigkeit und Beschleunigung
+3. **Python → WebSocket:** Parser erstellt daraus `motion_sample` Events und sendet diese über Websocket
 4. **WebSocket → Web-UI:** Browser empfängt Events als JSON-Stream
-5. **Web-UI → Chart:** Live-Update des Liniendiagramms (Zeit vs. Position)
+5. **Web-UI → Chart:** Live-Update des Liniendiagramms (Position/Geschwindigkeit/Beschleunigung über Zeit)
 
 ---
 
@@ -183,14 +183,15 @@ Das Projekt umfasst **explizit nicht:**
 **Prototyp & Entwicklung:**
 
 * Laptop mit NixOS/Linux
-* USB-CAN-Interface (z.B. CANable, Peak, Kvaser)
 * Virtuelles CAN-Interface (vcan0) für Entwicklung ohne Hardware
+* USB-CAN-Interface
 
 **Produktiv:**
 
 * Raspberry Pi am Prüfstand montiert **oder**
 * Industrie-PC am Prüfstand
 * Kein Internet-Zugang erforderlich
+* geg. Zugriff auf lokales Netz -> Web-UI erreichbar innerhalb des Netzwerks
 
 ---
 
@@ -202,12 +203,14 @@ Das Projekt umfasst **explizit nicht:**
 | -------------- | ----------------------------------------------------------------- | --------- |
 | FR-P1-01       | System empfängt CAN Position-Frames von LES02                     | Muss      |
 | FR-P1-02       | System parsed Positionswerte aus CAN-Payload                      | Muss      |
-| FR-P1-03       | System broadcasted `position_sample` Events via WebSocket         | Muss      |
-| FR-P1-04       | Web-UI empfängt Events und zeigt Live-Chart (Zeit/Position)       | Muss      |
+| FR-P1-03       | System broadcasted `motion_sample` Events via WebSocket           | Muss      |
+| FR-P1-04       | Web-UI empfängt Events und zeigt Live-Chart                       | Muss      |
 | FR-P1-05       | Chart aktualisiert sich kontinuierlich während Fahrt              | Muss      |
 | FR-P1-06       | System zeigt Verbindungsstatus (WebSocket connected/disconnected) | Muss      |
 | FR-P1-07       | System funktioniert mit Mock-Datenquelle (ohne echtes CAN)        | Muss      |
 | FR-P1-08       | UI ist im Dark Mode optimiert                                     | Sollte    |
+| FR-P2-09       | Berechnung und Anzeige von Geschwindigkeit (abgeleitet)           | Muss      |
+| FR-P2-10       | Berechnung und Anzeige von Beschleunigung (abgeleitet)            | Muss      |
 
 ### 8.2 Phase 2 (Produktionsversion)
 
@@ -218,10 +221,9 @@ Das Projekt umfasst **explizit nicht:**
 | FR-P2-03       | Nutzer kann historische Fahrt auswählen und anzeigen    | Muss      |
 | FR-P2-04       | System kann Referenzkurve (Soll-Profil) laden           | Sollte    |
 | FR-P2-05       | Web-UI zeigt Overlay: aufgezeichnete Fahrt vs. Referenz | Sollte    |
-| FR-P2-06       | Export-Funktion: Fahrt als CSV                          | Sollte    |
+| FR-P2-06       | Export-Funktion: Fahrt als CSV                          | Kann      |
 | FR-P2-07       | Export-Funktion: Chart als PNG                          | Kann      |
-| FR-P2-08       | Berechnung und Anzeige von Geschwindigkeit (abgeleitet) | Kann      |
-| FR-P2-09       | Berechnung und Anzeige von Beschleunigung (abgeleitet)  | Kann      |
+
 
 ---
 
@@ -236,7 +238,7 @@ Das Projekt umfasst **explizit nicht:**
 
 ### 9.2 EventEnvelope Datenmodell
 
-**EventEnvelope** ist ein eigens entwickelter Kommunikations-Standard für diesen Stack. Aktuell wird er ausschließlich für das unidirektionale Senden von `position_sample`-Events vom Python-Modul zum Next.js WebUI genutzt. Das Datenmodell ist aber so gestaltet, dass in Zukunft leicht weitere Typen (wie `run_start`, `run_stop` oder auch Kommandos in Richtung Python-Modul) und Payloads hinzugefügt werden können.
+**EventEnvelope** ist ein eigens entwickelter Kommunikations-Standard für diesen Stack. Aktuell wird er ausschließlich für das unidirektionale Senden von `motion_sample`-Events vom Python-Modul zum Next.js WebUI genutzt. Das Datenmodell ist aber so gestaltet, dass in Zukunft leicht weitere Typen (wie `run_start`, `run_stop` oder auch Kommandos in Richtung Python-Modul) und Payloads hinzugefügt werden können.
 
 Definition:
 
@@ -244,7 +246,7 @@ Definition:
 @dataclass
 class EventEnvelope:
     proto: int          # Protokollversion (z.B. 1)
-    type: str           # Event-Typ, z.B. "position_sample", später evtl. auch "run_start", "run_stop", etc.
+    type: str           # Event-Typ, z.B. "motion_sample", später evtl. auch "run_start", "run_stop", etc.
     ts: float           # Unix-Timestamp (Sekunden, hohe Präzision)
     source: str         # Datenquelle, z.B. "les02"
     payload: dict       # Flexible Payload, z.B. {"channel": "master", "position_raw": 12345}
@@ -352,7 +354,7 @@ ants-les02/
 
 * ✅ CAN-Frame-Parsing implementiert und getestet
 * ✅ WebSocket-Server funktionsfähig
-* ✅ Event-Protokoll definiert (`position_sample`)
+* ✅ Event-Protokoll definiert (`motion_sample`)
 * ✅ Mock-System für Entwicklung ohne Hardware
 * ✅ Entwicklungsumgebung mit Nix Flakes
 * 🔄 Web-UI Grundstruktur vorhanden (Next.js 16, React 19)

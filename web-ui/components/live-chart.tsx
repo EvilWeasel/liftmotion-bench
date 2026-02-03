@@ -235,12 +235,16 @@ export function LiveChart({
                   {Math.abs(currentSpeed / 1000).toFixed(2)} m/s
                 </Badge>
               </div>
+              {/*
+
               <div className="col-start-3 flex flex-col gap-1">
                 <p className="text-muted-foreground">Acceleration</p>
                 <Badge variant="secondary" className="font-mono">
                   {Math.abs(currentAcceleration / 1000).toFixed(2)} m/s²
                 </Badge>
               </div>
+              */}
+
               <div className="col-start-4 flex flex-col gap-1">
                 <Badge variant="outline" className="font-mono">
                   Floor {currentFloor}
@@ -483,6 +487,8 @@ export function LiveChart({
         </Card>
 
         {/* Acceleration Chart */}
+        {/*
+          
         <Card className="w-full">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-medium">
@@ -530,6 +536,7 @@ export function LiveChart({
             </ChartContainer>
           </CardContent>
         </Card>
+        */}
       </div>
 
       <p className="text-sm text-muted-foreground text-center">
