@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { LiveGauge } from "@/components/live-gauge";
 import { Play, Pause, RotateCcw, Focus, ZoomIn, ZoomOut } from "lucide-react";
 import type { MotionSample, PositionState } from "@/lib/types";
 
@@ -225,9 +226,24 @@ export function LiveChart({
             <div className="grid items-center gap-2 flex-wrap">
               <div className="col-start-1 flex flex-col gap-1">
                 <p className="text-muted-foreground">Position</p>
-                <Badge variant="secondary" className="font-mono">
-                  {(currentPosition / 1000).toFixed(2)} m
-                </Badge>
+                <LiveGauge
+                  value={currentPosition / 1000}
+                  unit="m"
+                  scale={{ min: 0, max: 12 }}
+                  ticks={{ step: 2, showLabels: true }}
+                  zones={[
+                    { from: 0, to: 60, color: "hsl(142.1 76.2% 36.3%)" },
+                    { from: 60, to: 80, color: "hsl(38.5 95.8% 53.1%)" },
+                    { from: 80, to: 100, color: "hsl(0 84.2% 60.2%)" },
+                  ]}
+                  animation={{
+                    type: "spring",
+                    stiffness: 0.15,
+                    maxSpeedDegPerSec: 270,
+                  }}
+                  valueBehavior="clamp"
+                  className="h-[140px] w-[220px]"
+                />
               </div>
               <div className="col-start-2 flex flex-col gap-1">
                 <p className="text-muted-foreground">Speed</p>
