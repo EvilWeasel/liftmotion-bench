@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { LiveGauge } from "@/components/live-gauge";
 import { Play, Pause, RotateCcw, Focus, ZoomIn, ZoomOut } from "lucide-react";
 import type { MotionSample, PositionState } from "@/lib/types";
+import { PositionBarGauge } from "./position-bar-gauge";
 
 const DEFAULT_WINDOW_SECONDS = 20; // Default: 20 seconds of data
 const MIN_WINDOW_SECONDS = 10; // Minimum zoom: 10 seconds
@@ -110,6 +111,7 @@ export function LiveChart({
     return samples
       .map((s) => {
         const timeNum = (s.timestamp - baseTime) / 1000;
+
         return {
           timeNum,
           position_mm: s.position_mm,
@@ -218,16 +220,26 @@ export function LiveChart({
     <div className="space-y-4">
       {/* Header Card */}
       <Card className="w-full">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 py-4">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 py-2">
           <div className="space-y-1">
-            <CardTitle className="text-xl font-semibold">
-              Elevator Position Monitor
-            </CardTitle>
-            <div className="grid items-center gap-2 flex-wrap">
-              <div className="col-start-1 flex flex-col gap-1">
-                <p className="text-muted-foreground">Position</p>
+            <div className="grid items-center gap-2 flex-wrap mt-4">
+              <div className="flex flex-col items-center gap-1 col-start-2">
+                <Badge variant="outline" className="font-mono">
+                  Floor {currentFloor}
+                </Badge>
+                <PositionBarGauge
+                  value={Math.abs(currentPosition / 1000)}
+                  height={140}
+                />
+                <Badge variant="outline" className="text-xs">
+                  {Math.abs(currentPosition / 1000).toFixed(2)} m
+                </Badge>
+              </div>
+              <div className="col-start-3 flex flex-col gap-1">
+                <p>{Math.abs(currentSpeed / 1000).toFixed(2)} m/s</p>
                 <LiveGauge
-                  value={currentPosition / 1000}
+                  name="Speed"
+                  value={Math.abs(currentSpeed / 1000)}
                   unit="m"
                   scale={{ min: 0, max: 12 }}
                   ticks={{ step: 2, showLabels: true }}
@@ -245,12 +257,6 @@ export function LiveChart({
                   className="h-[140px] w-[220px]"
                 />
               </div>
-              <div className="col-start-2 flex flex-col gap-1">
-                <p className="text-muted-foreground">Speed</p>
-                <Badge variant="secondary" className="font-mono">
-                  {Math.abs(currentSpeed / 1000).toFixed(2)} m/s
-                </Badge>
-              </div>
               {/*
 
               <div className="col-start-3 flex flex-col gap-1">
@@ -261,10 +267,7 @@ export function LiveChart({
               </div>
               */}
 
-              <div className="col-start-4 flex flex-col gap-1">
-                <Badge variant="outline" className="font-mono">
-                  Floor {currentFloor}
-                </Badge>
+              <div className="col-start-4 gap-1">
                 {!autoScroll && (
                   <Badge variant="destructive" className="text-xs">
                     Auto-scroll paused

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 type GaugeScale = {
   min: number;
@@ -25,6 +31,7 @@ type GaugeAnimation = {
 };
 
 export type LiveGaugeProps = {
+  name: string;
   value: number;
   unit: string;
   scale: GaugeScale;
@@ -120,6 +127,7 @@ function formatTick(value: number, step: number) {
 }
 
 export function LiveGauge({
+  name,
   value,
   unit,
   scale,
@@ -231,7 +239,8 @@ export function LiveGauge({
         step = Math.sign(step) * maxStep;
       }
 
-      const nextAngle = Math.abs(diff) < EPSILON ? targetAngle : currentAngle + step;
+      const nextAngle =
+        Math.abs(diff) < EPSILON ? targetAngle : currentAngle + step;
       currentAngleRef.current = nextAngle;
       updateNeedle(nextAngle);
 
@@ -242,7 +251,12 @@ export function LiveGauge({
         lastTimestampRef.current = null;
       }
     },
-    [animation.maxSpeedDegPerSec, animation.stiffness, animation.type, updateNeedle],
+    [
+      animation.maxSpeedDegPerSec,
+      animation.stiffness,
+      animation.type,
+      updateNeedle,
+    ],
   );
 
   const startAnimation = useCallback(() => {
@@ -263,7 +277,8 @@ export function LiveGauge({
       return;
     }
 
-    const clampedValue = valueBehavior === "clamp" ? clamp(value, min, max) : value;
+    const clampedValue =
+      valueBehavior === "clamp" ? clamp(value, min, max) : value;
     const angle = valueToAngle(clampedValue, min, max);
     setDisplayValue(clampedValue);
 
@@ -277,7 +292,14 @@ export function LiveGauge({
 
     targetAngleRef.current = angle;
     startAnimation();
-  }, [scale.max, scale.min, startAnimation, updateNeedle, value, valueBehavior]);
+  }, [
+    scale.max,
+    scale.min,
+    startAnimation,
+    updateNeedle,
+    value,
+    valueBehavior,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -397,6 +419,16 @@ export function LiveGauge({
           r={4}
           fill="currentColor"
         />
+        <text
+          x={GAUGE_SIZE.centerX}
+          y={GAUGE_SIZE.centerY + 24}
+          textAnchor="middle"
+          fontSize={14}
+          fill="currentColor"
+          className="font-mono"
+        >
+          {name}
+        </text>
         <text
           x={GAUGE_SIZE.centerX}
           y={GAUGE_SIZE.centerY - 10}
