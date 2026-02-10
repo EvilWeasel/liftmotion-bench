@@ -90,6 +90,7 @@ export function useWebSocketElevatorData(url: string) {
       setError(err instanceof Error ? err : new Error("WebSocket init failed"));
       setConnectionState("ERROR");
     }
+    // todo: remove isRunning from deps; can cause issues with reconnect logic; consider using a ref instead or deprecating the pause button altogether
   }, [url, isRunning]);
 
   useEffect(() => {

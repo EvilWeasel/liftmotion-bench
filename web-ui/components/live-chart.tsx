@@ -19,11 +19,9 @@ import {
 } from "@/components/ui/chart";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { LiveGauge } from "@/components/live-gauge";
 import { Play, Pause, RotateCcw, Focus, ZoomIn, ZoomOut } from "lucide-react";
-import type { MotionSample, PositionState } from "@/lib/types";
-import { PositionBarGauge } from "./position-bar-gauge";
+import type { MotionSample } from "@/lib/types";
+import { useElevatorData } from "@/components/elevator-data-provider";
 
 const DEFAULT_WINDOW_SECONDS = 20; // Default: 20 seconds of data
 const MIN_WINDOW_SECONDS = 10; // Minimum zoom: 10 seconds
@@ -64,7 +62,7 @@ export function LiveChart({
   onToggleRunning,
   onReset,
 }: LiveChartProps) {
-  const [autoScroll, setAutoScroll] = useState(true);
+  const { autoScroll, setAutoScroll } = useElevatorData();
   const [fixedEndTime, setFixedEndTime] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [windowSeconds, setWindowSeconds] = useState(DEFAULT_WINDOW_SECONDS);
@@ -122,14 +120,6 @@ export function LiveChart({
       .filter((d) => d.timeNum >= paddedStart && d.timeNum <= paddedEnd);
   }, [samples, timeRange]);
 
-  const latestSample = samples.length > 0 ? samples[samples.length - 1] : null;
-
-  const currentPosition = latestSample?.position_mm ?? 0;
-  const currentSpeed = latestSample?.velocity_mm_s ?? 0;
-  const currentAcceleration = latestSample?.acceleration_mm_s2 ?? 0;
-
-  const currentFloor = currentPosition >= 5000 ? "OG" : "EG";
-
   // Handle mouse/touch drag to scroll
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -150,7 +140,7 @@ export function LiveChart({
         dragStartEndTime.current = fixedEndTime ?? totalDuration;
       }
     },
-    [autoScroll, fixedEndTime, samples, windowSeconds],
+    [autoScroll, fixedEndTime, samples, setAutoScroll, windowSeconds],
   );
 
   const handleMouseMove = useCallback(
@@ -197,13 +187,13 @@ export function LiveChart({
   const handleResumeAutoScroll = useCallback(() => {
     setAutoScroll(true);
     setFixedEndTime(null);
-  }, []);
+  }, [setAutoScroll]);
 
   const handleReset = useCallback(() => {
     onReset();
     setAutoScroll(true);
     setFixedEndTime(null);
-  }, [onReset]);
+  }, [onReset, setAutoScroll]);
 
   // Shared X-axis props
   const xAxisProps = {
@@ -221,61 +211,7 @@ export function LiveChart({
       {/* Header Card */}
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 py-2">
-          <div className="space-y-1">
-            <div className="grid items-center gap-2 flex-wrap mt-4">
-              <div className="flex flex-col items-center gap-1 col-start-2">
-                <Badge variant="outline" className="font-mono">
-                  Floor {currentFloor}
-                </Badge>
-                <PositionBarGauge
-                  value={Math.abs(currentPosition / 1000)}
-                  height={140}
-                />
-                <Badge variant="outline" className="text-xs">
-                  {Math.abs(currentPosition / 1000).toFixed(2)} m
-                </Badge>
-              </div>
-              <div className="col-start-3 flex flex-col gap-1">
-                <p>{Math.abs(currentSpeed / 1000).toFixed(2)} m/s</p>
-                <LiveGauge
-                  name="Speed"
-                  value={Math.abs(currentSpeed / 1000)}
-                  unit="m"
-                  scale={{ min: 0, max: 12 }}
-                  ticks={{ step: 2, showLabels: true }}
-                  zones={[
-                    { from: 0, to: 60, color: "hsl(142.1 76.2% 36.3%)" },
-                    { from: 60, to: 80, color: "hsl(38.5 95.8% 53.1%)" },
-                    { from: 80, to: 100, color: "hsl(0 84.2% 60.2%)" },
-                  ]}
-                  animation={{
-                    type: "spring",
-                    stiffness: 0.15,
-                    maxSpeedDegPerSec: 270,
-                  }}
-                  valueBehavior="clamp"
-                  className="h-[140px] w-[220px]"
-                />
-              </div>
-              {/*
-
-              <div className="col-start-3 flex flex-col gap-1">
-                <p className="text-muted-foreground">Acceleration</p>
-                <Badge variant="secondary" className="font-mono">
-                  {Math.abs(currentAcceleration / 1000).toFixed(2)} m/s²
-                </Badge>
-              </div>
-              */}
-
-              <div className="col-start-4 gap-1">
-                {!autoScroll && (
-                  <Badge variant="destructive" className="text-xs">
-                    Auto-scroll paused
-                  </Badge>
-                )}
-              </div>
-            </div>
-          </div>
+          <div className="space-y-1"></div>
           <div className="flex items-center gap-2">
             {!autoScroll && (
               <Button
@@ -506,8 +442,7 @@ export function LiveChart({
         </Card>
 
         {/* Acceleration Chart */}
-        {/*
-          
+
         <Card className="w-full">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-medium">
@@ -555,7 +490,6 @@ export function LiveChart({
             </ChartContainer>
           </CardContent>
         </Card>
-        */}
       </div>
 
       <p className="text-sm text-muted-foreground text-center">

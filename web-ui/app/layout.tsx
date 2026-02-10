@@ -10,7 +10,6 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Separator } from "@/components/ui/separator";
 import {
   Breadcrumb,
@@ -18,8 +17,8 @@ import {
   BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
-  BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { ElevatorDataProvider } from "@/components/elevator-data-provider";
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -61,30 +60,34 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <SidebarProvider defaultOpen={true}>
-            <AppSidebar />
-            <SidebarInset side="left">
-              <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-                <SidebarTrigger className="-ml-1" />
-                <Separator
-                  orientation="vertical"
-                  className="mr-2 data-[orientation=vertical]:h-4"
-                />
-                <Breadcrumb>
-                  <BreadcrumbList>
-                    <BreadcrumbItem>
-                      <BreadcrumbPage>Fahrtkurven-Monitor</BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </BreadcrumbList>
-                </Breadcrumb>
-              </header>
-              <main>{children}</main>
-              <footer className="text-center text-xs text-muted-foreground">
-                Data updates every 20ms • Drag chart to view history • Click
-                &quot;Live&quot; to resume auto-scroll
-              </footer>
-            </SidebarInset>
-          </SidebarProvider>
+          <ElevatorDataProvider>
+            <SidebarProvider defaultOpen={true}>
+              <AppSidebar />
+              <SidebarInset side="left">
+                <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+                  <SidebarTrigger className="-ml-1" />
+                  <Separator
+                    orientation="vertical"
+                    className="mr-2 data-[orientation=vertical]:h-4"
+                  />
+                  <Breadcrumb>
+                    <BreadcrumbList>
+                      <BreadcrumbItem>
+                        <BreadcrumbPage className="text-md md:text-lg">
+                          Fahrtkurven-Monitor
+                        </BreadcrumbPage>
+                      </BreadcrumbItem>
+                    </BreadcrumbList>
+                  </Breadcrumb>
+                </header>
+                <main>{children}</main>
+                <footer className="text-center text-xs text-muted-foreground">
+                  Data updates every 20ms • Drag chart to view history • Click
+                  &quot;Live&quot; to resume auto-scroll
+                </footer>
+              </SidebarInset>
+            </SidebarProvider>
+          </ElevatorDataProvider>
         </ThemeProvider>
         <Analytics />
       </body>
