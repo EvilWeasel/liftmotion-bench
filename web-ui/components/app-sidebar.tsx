@@ -57,21 +57,24 @@ export function AppSidebar() {
     <Sidebar side="left" variant="inset">
       <SidebarHeader>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton onClick={toggleSidebar}>
-              <ChevronRightCircle />
-              <span>Toggle Sidebar</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            >
-              <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-              <span>Toggle theme</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          <SidebarGroup className="p-0">
+            <SidebarGroupLabel>App-Controls</SidebarGroupLabel>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={toggleSidebar}>
+                <ChevronRightCircle />
+                <span>Toggle Sidebar</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              >
+                <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
+                <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
+                <span>Toggle theme</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarGroup>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
@@ -79,7 +82,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Overview</SidebarGroupLabel>
           <SidebarGroupContent>
             <div className="space-y-3 py-2">
-              <div className="rounded-lg border bg-sidebar-accent/40 p-3">
+              <div className="bg-sidebar-accent/40 rounded-lg border p-3">
                 <div className="flex flex-col items-center gap-2">
                   <Badge variant="outline" className="font-mono">
                     Floor {currentFloor}
@@ -93,10 +96,10 @@ export function AppSidebar() {
                   </Badge>
                 </div>
               </div>
-              <div className="rounded-lg border bg-sidebar-accent/40 p-3">
+              <div className="bg-sidebar-accent/40 rounded-lg border p-3">
                 <div className="flex flex-col items-center gap-1">
-                  <p className="text-sm text-muted-foreground">Speed</p>
-                  <p className="text-sm font-mono">
+                  <p className="text-muted-foreground text-sm">Speed</p>
+                  <p className="font-mono text-sm">
                     {Math.abs(currentSpeed / 1000).toFixed(2)} m/s
                   </p>
                   <LiveGauge
@@ -143,17 +146,17 @@ export function AppSidebar() {
                   Auto-scroll paused
                 </Badge>
               )}
-              <div className="rounded-lg border bg-sidebar-accent/40 p-3">
+              <div className="bg-sidebar-accent/40 rounded-lg border p-3">
                 <div className="flex flex-col gap-2">
                   {!autoScroll && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={resumeAutoScroll}
-                      className="w-full justify-start gap-2 bg-transparent"
+                      className="w-full justify-start gap-2 bg-transparent outline-2 outline-green-500 outline-solid"
                     >
                       <Focus className="h-4 w-4" />
-                      Live
+                      Resume auto-scroll
                     </Button>
                   )}
                   <div className="flex items-center gap-2">
@@ -167,7 +170,7 @@ export function AppSidebar() {
                     >
                       <ZoomIn className="h-4 w-4" />
                     </Button>
-                    <div className="flex-1 rounded-md border bg-sidebar-accent/30 px-2 py-1 text-center text-xs font-mono">
+                    <div className="bg-sidebar-accent/30 flex-1 rounded-md border px-2 py-1 text-center font-mono text-xs">
                       {windowSeconds}s window
                     </div>
                     <Button

@@ -7,11 +7,7 @@ export default function Home() {
   const { samples } = useElevatorData();
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <p className="text-sm text-muted-foreground">
-        Real-time position monitoring • {samples.length.toLocaleString()}{" "}
-        samples
-      </p>
+    <div className="mx-auto max-w-7xl space-y-6">
       <LiveChart samples={samples} />
     </div>
   );
