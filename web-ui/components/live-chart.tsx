@@ -17,22 +17,12 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Play, Pause, RotateCcw, Focus, ZoomIn, ZoomOut } from "lucide-react";
 import type { MotionSample } from "@/lib/types";
 import { useElevatorData } from "@/components/elevator-data-provider";
 
-const DEFAULT_WINDOW_SECONDS = 20; // Default: 20 seconds of data
-const MIN_WINDOW_SECONDS = 10; // Minimum zoom: 10 seconds
-const MAX_WINDOW_SECONDS = 60; // Maximum zoom: 60 seconds
-const ZOOM_STEP = 5; // Zoom increment in seconds
-
 interface LiveChartProps {
   samples: MotionSample[];
-  isRunning: boolean;
-  onToggleRunning: () => void;
-  onReset: () => void;
 }
 
 const positionChartConfig = {
@@ -49,35 +39,20 @@ const speedChartConfig = {
   },
 };
 
-const accelerationChartConfig = {
-  acceleration: {
-    label: "Acceleration (m/s²)",
-    color: "hsl(var(--chart-3))",
-  },
-};
-
 export function LiveChart({
   samples,
-  isRunning,
-  onToggleRunning,
-  onReset,
 }: LiveChartProps) {
-  const { autoScroll, setAutoScroll } = useElevatorData();
-  const [fixedEndTime, setFixedEndTime] = useState<number | null>(null);
+  const {
+    autoScroll,
+    setAutoScroll,
+    fixedEndTime,
+    setFixedEndTime,
+    windowSeconds,
+  } = useElevatorData();
   const [isDragging, setIsDragging] = useState(false);
-  const [windowSeconds, setWindowSeconds] = useState(DEFAULT_WINDOW_SECONDS);
   const dragStartX = useRef<number | null>(null);
   const dragStartEndTime = useRef<number>(0);
   const chartContainerRef = useRef<HTMLDivElement>(null);
-
-  // Zoom handlers
-  const handleZoomIn = useCallback(() => {
-    setWindowSeconds((prev) => Math.max(MIN_WINDOW_SECONDS, prev - ZOOM_STEP));
-  }, []);
-
-  const handleZoomOut = useCallback(() => {
-    setWindowSeconds((prev) => Math.min(MAX_WINDOW_SECONDS, prev + ZOOM_STEP));
-  }, []);
 
   // Get the time range
   const timeRange = useMemo(() => {
@@ -140,7 +115,14 @@ export function LiveChart({
         dragStartEndTime.current = fixedEndTime ?? totalDuration;
       }
     },
-    [autoScroll, fixedEndTime, samples, setAutoScroll, windowSeconds],
+    [
+      autoScroll,
+      fixedEndTime,
+      samples,
+      setAutoScroll,
+      setFixedEndTime,
+      windowSeconds,
+    ],
   );
 
   const handleMouseMove = useCallback(
@@ -169,7 +151,7 @@ export function LiveChart({
       );
       setFixedEndTime(clampedEndTime);
     },
-    [isDragging, samples, windowSeconds],
+    [isDragging, samples, setFixedEndTime, windowSeconds],
   );
 
   const handleMouseUp = useCallback(() => {
@@ -184,17 +166,6 @@ export function LiveChart({
     }
   }, [isDragging]);
 
-  const handleResumeAutoScroll = useCallback(() => {
-    setAutoScroll(true);
-    setFixedEndTime(null);
-  }, [setAutoScroll]);
-
-  const handleReset = useCallback(() => {
-    onReset();
-    setAutoScroll(true);
-    setFixedEndTime(null);
-  }, [onReset, setAutoScroll]);
-
   // Shared X-axis props
   const xAxisProps = {
     dataKey: "timeNum" as const,
@@ -208,71 +179,6 @@ export function LiveChart({
 
   return (
     <div className="space-y-4">
-      {/* Header Card */}
-      <Card className="w-full">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 py-2">
-          <div className="space-y-1"></div>
-          <div className="flex items-center gap-2">
-            {!autoScroll && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleResumeAutoScroll}
-                className="gap-1 bg-transparent"
-              >
-                <Focus className="h-4 w-4" />
-                Live
-              </Button>
-            )}
-            <div className="flex items-center gap-1 border rounded-md">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleZoomIn}
-                disabled={windowSeconds <= MIN_WINDOW_SECONDS}
-                title="Zoom in (show less time)"
-                className="h-8 w-8"
-              >
-                <ZoomIn className="h-4 w-4" />
-              </Button>
-              <span className="text-xs font-mono px-1 min-w-[3rem] text-center">
-                {windowSeconds}s
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleZoomOut}
-                disabled={windowSeconds >= MAX_WINDOW_SECONDS}
-                title="Zoom out (show more time)"
-                className="h-8 w-8"
-              >
-                <ZoomOut className="h-4 w-4" />
-              </Button>
-            </div>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={onToggleRunning}
-              title={isRunning ? "Pause data" : "Resume data"}
-            >
-              {isRunning ? (
-                <Pause className="h-4 w-4" />
-              ) : (
-                <Play className="h-4 w-4" />
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handleReset}
-              title="Reset chart"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardHeader>
-      </Card>
-
       {/* Charts Container - draggable area */}
       <div
         ref={chartContainerRef}
@@ -442,7 +348,8 @@ export function LiveChart({
         </Card>
 
         {/* Acceleration Chart */}
-
+        {/*
+          
         <Card className="w-full">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-medium">
@@ -490,6 +397,7 @@ export function LiveChart({
             </ChartContainer>
           </CardContent>
         </Card>
+        */}
       </div>
 
       <p className="text-sm text-muted-foreground text-center">

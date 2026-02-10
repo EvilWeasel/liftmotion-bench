@@ -12,9 +12,20 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { ChevronRightCircle, Moon, Sun } from "lucide-react";
+import {
+  ChevronRightCircle,
+  Focus,
+  Moon,
+  Pause,
+  Play,
+  RotateCcw,
+  Sun,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { LiveGauge } from "@/components/live-gauge";
 import { PositionBarGauge } from "@/components/position-bar-gauge";
 import { useElevatorData } from "@/components/elevator-data-provider";
@@ -22,7 +33,19 @@ import { useElevatorData } from "@/components/elevator-data-provider";
 export function AppSidebar() {
   const { toggleSidebar } = useSidebar();
   const { theme, setTheme } = useTheme();
-  const { samples, autoScroll } = useElevatorData();
+  const {
+    samples,
+    autoScroll,
+    isRunning,
+    toggleRunning,
+    windowSeconds,
+    zoomIn,
+    zoomOut,
+    canZoomIn,
+    canZoomOut,
+    resumeAutoScroll,
+    resetChart,
+  } = useElevatorData();
 
   const latestSample = samples.length > 0 ? samples[samples.length - 1] : null;
 
@@ -55,55 +78,135 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Overview</SidebarGroupLabel>
           <SidebarGroupContent>
-            <div className="flex flex-col items-center gap-3 py-2">
-              <div className="flex flex-col items-center gap-1">
-                <Badge variant="outline" className="font-mono">
-                  Floor {currentFloor}
-                </Badge>
-                <PositionBarGauge
-                  value={Math.abs(currentPosition / 1000)}
-                  height={140}
-                />
-                <Badge variant="outline" className="text-xs">
-                  {Math.abs(currentPosition / 1000).toFixed(2)} m
-                </Badge>
+            <div className="space-y-3 py-2">
+              <div className="rounded-lg border bg-sidebar-accent/40 p-3">
+                <div className="flex flex-col items-center gap-2">
+                  <Badge variant="outline" className="font-mono">
+                    Floor {currentFloor}
+                  </Badge>
+                  <PositionBarGauge
+                    value={Math.abs(currentPosition / 1000)}
+                    height={140}
+                  />
+                  <Badge variant="outline" className="text-xs">
+                    {Math.abs(currentPosition / 1000).toFixed(2)} m
+                  </Badge>
+                </div>
               </div>
-              <div className="flex flex-col items-center gap-1">
-                <LiveGauge
-                  name="Speed"
-                  value={Math.abs(currentSpeed / 1000)}
-                  unit="m"
-                  scale={{ min: 0, max: 12 }}
-                  ticks={{ step: 2, showLabels: true }}
-                  zones={[
-                    { from: 0, to: 60, color: "hsl(142.1 76.2% 36.3%)" },
-                    { from: 60, to: 80, color: "hsl(38.5 95.8% 53.1%)" },
-                    { from: 80, to: 100, color: "hsl(0 84.2% 60.2%)" },
-                  ]}
-                  animation={{
-                    type: "spring",
-                    stiffness: 0.15,
-                    maxSpeedDegPerSec: 270,
-                  }}
-                  valueBehavior="clamp"
-                  className="h-[140px] w-[220px]"
-                />
+              <div className="rounded-lg border bg-sidebar-accent/40 p-3">
+                <div className="flex flex-col items-center gap-1">
+                  <p className="text-sm text-muted-foreground">Speed</p>
+                  <p className="text-sm font-mono">
+                    {Math.abs(currentSpeed / 1000).toFixed(2)} m/s
+                  </p>
+                  <LiveGauge
+                    name="Speed"
+                    value={Math.abs(currentSpeed / 1000)}
+                    unit="m"
+                    scale={{ min: 0, max: 12 }}
+                    ticks={{ step: 2, showLabels: true }}
+                    zones={[
+                      { from: 0, to: 60, color: "hsl(142.1 76.2% 36.3%)" },
+                      { from: 60, to: 80, color: "hsl(38.5 95.8% 53.1%)" },
+                      { from: 80, to: 100, color: "hsl(0 84.2% 60.2%)" },
+                    ]}
+                    animation={{
+                      type: "spring",
+                      stiffness: 0.15,
+                      maxSpeedDegPerSec: 270,
+                    }}
+                    valueBehavior="clamp"
+                    className="h-[140px] w-[220px]"
+                  />
+                </div>
               </div>
               {/*
 
-              <div className="flex flex-col items-center gap-1">
-                <p className="text-muted-foreground">Acceleration</p>
-                <Badge variant="secondary" className="font-mono">
-                  {Math.abs(currentAcceleration / 1000).toFixed(2)} m/s²
-                </Badge>
+              <div className="rounded-lg border bg-sidebar-accent/40 p-3">
+                <div className="flex flex-col items-center gap-1">
+                  <p className="text-muted-foreground">Acceleration</p>
+                  <Badge variant="secondary" className="font-mono">
+                    {Math.abs(currentAcceleration / 1000).toFixed(2)} m/s²
+                  </Badge>
+                </div>
               </div>
               */}
-
+            </div>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>Chart Controls</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <div className="space-y-2 py-2">
               {!autoScroll && (
                 <Badge variant="destructive" className="text-xs">
                   Auto-scroll paused
                 </Badge>
               )}
+              <div className="rounded-lg border bg-sidebar-accent/40 p-3">
+                <div className="flex flex-col gap-2">
+                  {!autoScroll && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={resumeAutoScroll}
+                      className="w-full justify-start gap-2 bg-transparent"
+                    >
+                      <Focus className="h-4 w-4" />
+                      Live
+                    </Button>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={zoomIn}
+                      disabled={!canZoomIn}
+                      title="Zoom in (show less time)"
+                      className="h-8 w-8"
+                    >
+                      <ZoomIn className="h-4 w-4" />
+                    </Button>
+                    <div className="flex-1 rounded-md border bg-sidebar-accent/30 px-2 py-1 text-center text-xs font-mono">
+                      {windowSeconds}s window
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={zoomOut}
+                      disabled={!canZoomOut}
+                      title="Zoom out (show more time)"
+                      className="h-8 w-8"
+                    >
+                      <ZoomOut className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleRunning}
+                    title={isRunning ? "Pause data" : "Resume data"}
+                    className="w-full justify-start gap-2"
+                  >
+                    {isRunning ? (
+                      <Pause className="h-4 w-4" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                    {isRunning ? "Pause data" : "Resume data"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={resetChart}
+                    title="Reset chart"
+                    className="w-full justify-start gap-2"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Reset chart
+                  </Button>
+                </div>
+              </div>
             </div>
           </SidebarGroupContent>
         </SidebarGroup>
